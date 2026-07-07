@@ -1,111 +1,222 @@
-# iMirror — iOS 有线投屏采集（Python 版 quicktime_video_hack）
+# iMirror
 
-通过 USB 数据线直接采集 iPhone/iPad 的屏幕(H.264)和音频(LPCM)流，
-是 [danielpaulus/quicktime_video_hack](https://github.com/danielpaulus/quicktime_video_hack)(Go)
-与 [chotgpt/quicktime_video_hack_windows](https://github.com/chotgpt/quicktime_video_hack_windows)(C++)
-的 Python 移植。
+[![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](#license)
+[![Status](https://img.shields.io/badge/status-experimental-orange)](#project-status)
 
-## 可行性评估结论
+iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流的 Python 实现。它移植自
+[danielpaulus/quicktime_video_hack](https://github.com/danielpaulus/quicktime_video_hack)
+的 Go 版协议实现，并参考
+[chotgpt/quicktime_video_hack_windows](https://github.com/chotgpt/quicktime_video_hack_windows)
+的 Windows 适配经验。
 
-**可以转成 Python，且大部分核心工作已在本骨架中完成。**
+当前目标是提供一个可测试、可维护的 QuickTime 有线投屏采集库和命令行工具，用于录制 H.264
+视频流和 LPCM 音频流。
 
-| 层 | 难度 | 本项目状态 |
-|---|---|---|
-| USB 通信 (pyusb/libusb) | 中低 | ✅ 已实现：设备发现、QT 配置激活(控制请求 `0x40/0x52`)、bulk 读写循环 |
-| 协议分帧 (4字节长度前缀) | 低 | ✅ 已实现 + 单测 |
-| QuickTime 协议 (ping/sync/asyn) | 中高 | ✅ 已按 Go 源码逐字节移植：CWPA/CVRP/CLOK/TIME/AFMT/SKEW/STOP 握手、HPD1/HPA1 参数字典、NEED 流控 |
-| CoreMedia 结构 (CMSampleBuffer/CMTime/dict) | 中高 | ✅ 已实现，可用 reference 里的真机抓包 fixture 做字节级验证 |
-| H.264/音频落盘 | 中 | ✅ Annex-B .h264 + .wav 写入器 |
-| 实时预览 GUI | 中 | ⚠️ 骨架已有(PyAV 解码 + OpenCV 显示)，需真机联调 |
-| **真机联调** | — | ❌ 需要 iPhone + libusb 驱动环境，这是剩下的主要工作 |
+## Project Status
 
-关键点：**协议逻辑不需要重新逆向**——Go 版已经全部写清楚，本项目是对照
-`reference/quicktime_video_hack/screencapture/` 逐文件移植的，每个模块的 docstring
-都标了对应的 Go 源文件，遇到问题直接对照。
+项目仍处于实验阶段。协议层、CoreMedia 解析和报文序列化已经完成，并通过真机抓包 fixture
+进行字节级测试；剩余主要工作是真机 USB 联调和预览体验优化。
 
-## 目录结构
+| 模块 | 状态 |
+| --- | --- |
+| USB 设备发现与 QuickTime 配置激活 | 已实现，待更多真机环境验证 |
+| QuickTime PING/SYNC/ASYN 协议 | 已按 Go 版移植并覆盖 fixture 测试 |
+| CoreMedia CMSampleBuffer/CMTime/dict 解析 | 已实现 |
+| H.264 Annex-B 与 WAV 落盘 | 已实现 |
+| 实时预览 GUI | 已有骨架，需真机联调 |
+| 音画同步、推流、多设备 | 规划中 |
 
-```
-imirror/
-├── imirror/                  # Python 包
-│   ├── cli.py              # 命令行入口 (devices/activate/record/gui)
-│   ├── session.py          # 消息状态机 (对照 messageprocessor.go)
-│   ├── protocol/           # 协议层
-│   │   ├── constants.py    #   所有 magic 常量
-│   │   ├── framing.py      #   USB 流分帧
-│   │   ├── ping.py         #   PING
-│   │   ├── sync.py         #   SYNC 解析 + RPLY 构造
-│   │   └── asyn.py         #   ASYN 解析 + HPD1/HPA1/NEED 构造
-│   ├── coremedia/          # CoreMedia 二进制结构
-│   │   ├── cmtime.py       #   CMTime / CMSampleTimingInfo
-│   │   ├── cmclock.py      #   本地时钟 + skew 计算
-│   │   ├── cmsamplebuffer.py #  sbuf 解析(音视频帧载体)
-│   │   ├── formatdescriptor.py # fdsc(分辨率/SPS/PPS/音频格式)
-│   │   ├── qtdict.py       #   序列化字典 dict/keyv/...
-│   │   ├── nsnumber.py     #   NSNumber
-│   │   └── asbd.py         #   AudioStreamBasicDescription
-│   ├── usb/                # USB 层 (pyusb)
-│   │   ├── discovery.py    #   枚举 Apple 设备, 检测 QT 配置
-│   │   ├── activation.py   #   激活隐藏 QuickTime 配置
-│   │   └── adapter.py      #   claim 接口 + bulk 读写循环
-│   ├── consumers/          # 数据消费者
-│   │   ├── h264_writer.py  #   Annex-B .h264 落盘
-│   │   └── wav_writer.py   #   .wav 落盘 + 组合器
-│   └── gui/viewer.py       # PyAV 解码 + OpenCV 实时预览
-├── tests/                  # pytest, 用真机抓包 fixture 做字节级验证
-├── reference/              # 两个原版仓库的浅克隆(对照用, 不要改)
-└── docs/protocol.md        # 协议速查
-```
+## Features
 
-## 快速开始
+- 通过 `pyusb` 发现 iOS 设备并激活隐藏的 QuickTime USB 配置。
+- 实现 PING、SYNC、ASYN、RPLY、HPD1、HPA1、NEED 等核心协议报文。
+- 解析 CoreMedia 的 `CMSampleBuffer`、`CMTime`、format description 和 QuickTime 字典结构。
+- 将视频帧写入 Annex-B `.h264` 文件，将音频写入 `.wav` 文件。
+- 提供命令行工具：设备列表、激活、录制、实时预览。
+- 使用真机抓包 fixture 进行协议解析和序列化的字节级回归测试。
+
+## Requirements
+
+- Python 3.10+
+- libusb 运行环境
+- iPhone 或 iPad，以及可信任的数据线连接
+- Windows 用户需要用 Zadig 为设备安装 libusbK 或 WinUSB 驱动
+
+可选依赖：
+
+- `av` 和 `opencv-python`：用于实时预览 GUI
+- `ffplay`：用于播放录制出的 `.h264` 文件
+
+## Installation
+
+推荐使用 `uv` 创建开发环境：
 
 ```bash
-cd imirror
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+uv venv .venv
+uv pip install --python .venv/bin/python -e ".[dev]"
+```
+
+Windows PowerShell：
+
+```powershell
+uv venv .venv
+uv pip install --python .venv\Scripts\python.exe -e ".[dev]"
+```
+
+如果不使用 `uv`，也可以用标准虚拟环境：
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -e ".[dev]"
+```
 
-# 先跑测试确认协议层正确(不需要 iPhone)
+安装 GUI 可选依赖：
+
+```bash
+pip install -e ".[gui]"
+```
+
+## Quick Start
+
+先运行测试，确认协议层和 fixture 解析正常：
+
+```bash
 pytest
+```
 
-# 接上 iPhone 后
-python -m imirror devices        # 列设备
-python -m imirror record out.h264 out.wav   # 录制(自动激活 QT 配置)
-ffplay -f h264 out.h264        # 播放验证
+列出已连接的 iOS 设备：
 
-# 实时预览(需要 pip install av opencv-python)
+```bash
+python -m imirror devices
+```
+
+激活 QuickTime USB 配置：
+
+```bash
+python -m imirror activate
+```
+
+录制屏幕和音频：
+
+```bash
+python -m imirror record out.h264 out.wav
+```
+
+播放录制出的视频流：
+
+```bash
+ffplay -f h264 out.h264
+```
+
+启动实时预览：
+
+```bash
 python -m imirror gui
 ```
 
-## Windows 驱动准备（和 C++ 版相同，绕不开）
+安装为 editable 包后，也可以直接使用 console script：
 
-1. 卸载/停用 **Apple Mobile Device Support**（与 libusb 冲突）
-2. 用 [Zadig](https://zadig.akeo.ie/) 把 iPhone 的驱动替换为 **libusbK** 或 **WinUSB**
-3. pyusb 需要 libusb 运行库：`pip install libusb-package` 或把 `libusb-1.0.dll` 放到 PATH
-4. 首次连接在手机上点"信任此电脑"
-
-Linux 下通常只需 udev 权限（或 sudo 运行）。
-
-## 会话流程（详见 docs/protocol.md）
-
-```
-激活: 控制请求 0x40/0x52/wIndex=2 → 设备重新枚举, 暴露 QT 配置(class 0xFF, subclass 0x2A)
-握手: PING↔PING → SYNC OG → SYNC CWPA(发2次HPD1 + 回RPLY + 发HPA1)
-      → SYNC CVRP(发NEED + 回RPLY) → CLOK/TIME/AFMT 按需应答
-数据: ASYN FEED(视频, 每帧回一个 NEED) / ASYN EAT!(音频) / SYNC SKEW(定期)
-关闭: 发 HPA0/HPD0 → 等 ASYN RELS → 设备恢复普通模式
+```bash
+imirror devices
+imirror record out.h264 out.wav
 ```
 
-## 剩余工作(按优先级)
+## CLI
 
-1. **真机联调**：跑通 `record`，重点验证 USB 激活后的重枚举时序、`clear_halt`、
-   以及 `formatdescriptor.py` 里 SPS/PPS 的提取位置（标了 TODO，以真机数据为准）
-2. GUI 延迟优化：解码放独立进程、丢帧策略
-3. 音画同步（目前音视频分开落盘）
-4. 推流扩展：RTMP/WebRTC/虚拟摄像头(OBS)
-5. 多设备并行采集
+| 命令 | 用途 |
+| --- | --- |
+| `imirror devices` | 列出 iOS 设备以及 QuickTime 配置状态 |
+| `imirror activate [--udid SERIAL]` | 激活指定设备的 QuickTime 配置 |
+| `imirror record out.h264 out.wav [--udid SERIAL]` | 录制视频和音频 |
+| `imirror gui [--udid SERIAL]` | 打开实时预览窗口 |
 
-## 致谢与协议
+可以添加 `-v` 或 `--verbose` 输出更详细日志。
 
-- 协议逆向: Daniel Paulus (MIT)
-- Windows C++ 适配: chotgpt (MIT)
-- 本项目: MIT
+## Windows Driver Setup
+
+Windows 下 Apple Mobile Device Support 会占用原生 iOS USB 接口，通常需要切换到 libusb 驱动：
+
+1. 卸载或停用 Apple Mobile Device Support。
+2. 使用 [Zadig](https://zadig.akeo.ie/) 将 iPhone/iPad 的驱动替换为 libusbK 或 WinUSB。
+3. 安装 libusb 运行库，例如 `pip install libusb-package`，或将 `libusb-1.0.dll` 放入 `PATH`。
+4. 首次连接设备时，在手机上选择信任此电脑。
+
+Linux 通常只需要配置 udev 权限，或使用 sudo 运行命令。
+
+## Protocol Notes
+
+协议实现以 `reference/quicktime_video_hack/screencapture/` 中的 Go 源码为权威参考。Python
+模块的 docstring 标注了对应的 Go 文件，修改协议逻辑前应先对照 Go 版。
+
+关键约定：
+
+- 发给设备的 HPD1、HPA1、RPLY、NEED 等报文必须与 Go 版逐字节一致。
+- USB bulk 流使用 4 字节小端长度前缀分帧。
+- `ASYN FEED` 视频帧消费后必须回 `NEED`，否则设备会停止继续推流。
+- fixture 大多带 4 字节长度前缀，解析测试使用 `load_stripped`；`asyn-eat` 不带长度前缀。
+
+更多细节见 [docs/protocol.md](docs/protocol.md)。
+
+## Development
+
+运行测试：
+
+```bash
+pytest tests/ -q
+```
+
+使用项目约定的虚拟环境路径：
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m imirror devices
+.venv/bin/python -m imirror record out.h264 out.wav
+```
+
+Windows PowerShell 对应命令：
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests/ -q
+.venv\Scripts\python.exe -m imirror devices
+.venv\Scripts\python.exe -m imirror record out.h264 out.wav
+```
+
+请不要修改 `reference/` 目录，它是只读参考副本。
+
+## Project Layout
+
+```text
+imirror/
+├── imirror/
+│   ├── cli.py                  # 命令行入口
+│   ├── session.py              # 消息状态机
+│   ├── protocol/               # QuickTime 协议分帧和报文
+│   ├── coremedia/              # CoreMedia 二进制结构解析
+│   ├── usb/                    # pyusb 设备发现、激活和读写
+│   ├── consumers/              # H.264/WAV 输出
+│   └── gui/                    # 实时预览
+├── tests/                      # pytest 测试和 fixture 验证
+├── docs/protocol.md            # 协议速查
+└── reference/                  # 上游 Go/C++ 参考实现，只读
+```
+
+## Roadmap
+
+- 跑通更多真机环境下的 `record` 流程。
+- 验证 USB 激活后的重枚举时序和 `clear_halt` 行为。
+- 进一步确认 `formatdescriptor.py` 中 SPS/PPS 提取位置。
+- 优化 GUI 延迟、解码进程和丢帧策略。
+- 增加音画同步、RTMP/WebRTC 推流和虚拟摄像头输出。
+- 支持多设备并行采集。
+
+## Credits
+
+- Protocol reverse engineering: Daniel Paulus
+- Windows adaptation reference: chotgpt
+- Python port: iMirror contributors
+
+## License
+
+MIT
