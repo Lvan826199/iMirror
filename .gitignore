@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+reference/
+*.egg-info/
+*.h264
+*.wav
+dist/

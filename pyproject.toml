@@ -1,0 +1,32 @@
+[project]
+name = "imirror"
+version = "0.1.0"
+description = "iOS 有线投屏采集 - QuickTime 协议的 Python 实现"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pyusb>=1.2",
+]
+
+[project.optional-dependencies]
+gui = [
+    "av>=12.0",
+    "opencv-python>=4.9",
+]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+imirror = "imirror.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["imirror*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
