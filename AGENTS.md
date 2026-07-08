@@ -1,4 +1,7 @@
-# iMirror 项目说明（给 Codex 的上下文）
+# iMirror 项目说明（给 AI 编码助手的上下文）
+
+> 本文件是唯一维护的助手说明（AGENTS.md 标准，Codex/Cursor 等直接读取）；
+> `CLAUDE.md` 仅是对本文件的引用，内容改这里即可。
 
 iOS 有线投屏采集的 Python 实现，移植自 Go 版 quicktime_video_hack。
 先读 `README.md`（现状与剩余工作）和 `docs/protocol.md`（协议速查）。
