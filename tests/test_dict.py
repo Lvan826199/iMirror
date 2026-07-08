@@ -1,7 +1,8 @@
-"""字典解析/序列化的 fixture 测试。"""
-import pathlib
+"""字典解析/序列化的 fixture 测试。
 
-import pytest
+fixture 已随仓库提供(tests/fixtures/coremedia, 拷贝自 Go 原版仓库, MIT 协议)。
+"""
+import pathlib
 
 from imirror.coremedia.qtdict import (
     parse_string_key_dict,
@@ -9,13 +10,12 @@ from imirror.coremedia.qtdict import (
     serialize_string_key_dict,
 )
 
-FIXTURES = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "reference/quicktime_video_hack/screencapture/coremedia/fixtures"
-)
-
-pytestmark = pytest.mark.skipif(
-    not FIXTURES.is_dir(), reason="reference 仓库未克隆, 跳过 fixture 测试"
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
+FIXTURES = next(
+    p for p in (
+        _ROOT / "tests/fixtures/coremedia",
+        _ROOT / "reference/quicktime_video_hack/screencapture/coremedia/fixtures",
+    ) if p.is_dir()
 )
 
 

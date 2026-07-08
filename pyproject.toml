@@ -1,6 +1,6 @@
 [project]
 name = "imirror"
-version = "0.1.0"
+version = "0.2.0"
 description = "iOS 有线投屏采集 - QuickTime 协议的 Python 实现"
 readme = "README.md"
 requires-python = ">=3.10"

@@ -59,7 +59,19 @@ class MessageProcessor:
 
         self._video_count = 0
         self._audio_count = 0
+        self._video_bytes = 0
+        self._audio_bytes = 0
         self.release_event = threading.Event()
+
+    @property
+    def stats(self) -> dict:
+        """当前会话统计(供 CLI 周期性展示)。"""
+        return {
+            "video_frames": self._video_count,
+            "audio_frames": self._audio_count,
+            "video_bytes": self._video_bytes,
+            "audio_bytes": self._audio_bytes,
+        }
 
     # -------------------------------------------------- 入口
 
@@ -141,6 +153,7 @@ class MessageProcessor:
                 self._write(self._need_message)
                 return
             self._video_count += 1
+            self._video_bytes += len(pkt.sample_buffer.sample_data)
             self._consumer.consume(pkt.sample_buffer)
             if self._video_count % 500 == 0:
                 log.debug("已收视频帧 %d, 最后一帧: %s", self._video_count, pkt.sample_buffer)
@@ -152,6 +165,7 @@ class MessageProcessor:
                 log.warning("解析 EAT 失败: %s", e)
                 return
             self._audio_count += 1
+            self._audio_bytes += len(pkt.sample_buffer.sample_data)
             self._track_audio_clock(pkt.sample_buffer)
             self._consumer.consume(pkt.sample_buffer)
         elif subtype in (c.SPRP, c.TJMP, c.SRAT, c.TBAS):

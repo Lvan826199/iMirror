@@ -1,25 +1,45 @@
 """命令行入口。
 
 用法:
-  python -m imirror devices             # 列出 iOS 设备及 QT 配置状态
+  python -m imirror devices [--json]    # 列出 iOS 设备及 QT 配置状态
   python -m imirror activate            # 激活 QuickTime 配置
-  python -m imirror record out.h264 out.wav [--udid SERIAL]   # 录制
+  python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
   python -m imirror gui                 # 实时预览(需要 PyAV + OpenCV)
 """
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import signal
 import sys
 import threading
 
+from . import __version__
+
 log = logging.getLogger("imirror")
 
 
-def cmd_devices(_args) -> int:
+def _fmt_bytes(n: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.1f}{unit}" if unit != "B" else f"{n}B"
+        n /= 1024
+    return f"{n}B"
+
+
+def cmd_devices(args) -> int:
     from .usb.discovery import find_ios_devices
     devices = find_ios_devices()
+    if args.json:
+        print(json.dumps([{
+            "serial": d.serial,
+            "product": d.product_name,
+            "vid": d.vid,
+            "pid": d.pid,
+            "qt_enabled": d.qt_enabled,
+        } for d in devices], ensure_ascii=False, indent=2))
+        return 0 if devices else 1
     if not devices:
         print("未发现 iOS 设备。检查: 1) 数据线 2) 手机已解锁并信任 3) libusb 驱动(Windows 需用 Zadig 替换)")
         return 1
@@ -73,9 +93,26 @@ def cmd_record(args) -> int:
 
     stop_event = threading.Event()
     signal.signal(signal.SIGINT, lambda *_: stop_event.set())
-    print("录制中... Ctrl+C 停止")
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, lambda *_: stop_event.set())
+
+    if args.duration:
+        print(f"录制中(限时 {args.duration}s)... Ctrl+C 提前停止")
+    else:
+        print("录制中... Ctrl+C 停止")
     try:
-        stop_event.wait()
+        # 周期性打印帧数/数据量, 顺带充当 --duration 的计时器
+        elapsed = 0.0
+        interval = 5.0
+        while not stop_event.wait(interval):
+            elapsed += interval
+            s = processor.stats
+            fps = s["video_frames"] / elapsed if elapsed else 0
+            print(f"  [{elapsed:5.0f}s] 视频 {s['video_frames']} 帧 (~{fps:.1f}fps, "
+                  f"{_fmt_bytes(s['video_bytes'])})  音频 {s['audio_frames']} 帧 "
+                  f"({_fmt_bytes(s['audio_bytes'])})")
+            if args.duration and elapsed >= args.duration:
+                break
     finally:
         processor.close_session()
         adapter.close()
@@ -96,11 +133,17 @@ def cmd_gui(args) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="imirror", description="iMirror: iOS 有线投屏采集 (Python 版 quicktime_video_hack)")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    parser = argparse.ArgumentParser(
+        prog="imirror",
+        description="iMirror: iOS 有线投屏采集 (Python 版 quicktime_video_hack)",
+        epilog="示例: imirror record out.h264 out.wav --duration 30",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="输出 DEBUG 日志")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("devices", help="列出 iOS 设备")
+    p = sub.add_parser("devices", help="列出 iOS 设备")
+    p.add_argument("--json", action="store_true", help="以 JSON 输出(便于脚本调用)")
 
     p = sub.add_parser("activate", help="激活 QuickTime 配置")
     p.add_argument("--udid", help="设备序列号")
@@ -109,6 +152,8 @@ def main(argv=None) -> int:
     p.add_argument("h264", help="输出 .h264 文件")
     p.add_argument("wav", help="输出 .wav 文件")
     p.add_argument("--udid", help="设备序列号")
+    p.add_argument("--duration", type=float, metavar="秒",
+                   help="录制时长, 到时自动停止(默认无限, Ctrl+C 停止)")
 
     p = sub.add_parser("gui", help="实时预览窗口")
     p.add_argument("--udid", help="设备序列号")

@@ -86,9 +86,51 @@ CMTime 布局: `value(u64) timescale(u32) flags(u32) epoch(u64)` = 24 字节。
 - 视频: SPS/PPS 及每个 NALU 前加 Annex-B 起始码 `00 00 00 01` 写 .h264，ffplay 可直接播。
 - 音频: 默认 48kHz/16bit/双声道 LPCM，直接进 .wav。
 
-## 7. 已知移植注意点
+## 7. 会话时序总览
+
+```mermaid
+sequenceDiagram
+    participant H as 主机(iMirror)
+    participant D as iPhone
+    H->>D: ctrl 0x40/0x52 wIndex=2 (激活)
+    Note over D: 断开并重枚举, 暴露 QT 配置
+    D->>H: PING
+    H->>D: PING
+    D->>H: SYNC OG
+    H->>D: RPLY (空)
+    D->>H: SYNC CWPA (音频时钟)
+    H->>D: ASYN HPD1 ×2
+    H->>D: RPLY (deviceClockRef+1000)
+    H->>D: ASYN HPA1
+    D->>H: ASYN SPRP/TBAS/SRAT/TJMP (记录即可)
+    D->>H: SYNC CVRP (视频时钟, 含 fdsc)
+    H->>D: ASYN NEED (首个)
+    H->>D: RPLY (deviceClockRef+0x1000AF)
+    D->>H: SYNC CLOK / TIME / AFMT (按需应答)
+    loop 数据流
+        D->>H: ASYN FEED (视频帧)
+        H->>D: ASYN NEED
+        D->>H: ASYN EAT! (音频帧)
+        D->>H: SYNC SKEW (定期, 回 f64)
+    end
+    H->>D: ASYN HPA0 → 等 RELS
+    H->>D: ASYN HPD0 → 等 RELS
+    H->>D: ctrl 0x40/0x52 wIndex=0 (恢复普通模式)
+```
+
+## 8. 测试 fixture 约定
+
+fixture 来自 Go 原版仓库的真机抓包（MIT），已随本仓库拷贝到 `tests/fixtures/`
+（`packet/` 与 `coremedia/` 两组），克隆即可跑测试，不需要 iPhone。
+
+- **大部分 fixture 是完整帧（含 4 字节长度前缀）**：解析测试用 `load_stripped`
+  去前缀；序列化对比测试直接和我方发包（同样含前缀）逐字节比。
+- **例外——不含长度前缀**：`asyn-eat`、`asyn-feed-nofdsc`（Go 测试也是整文件直传）。
+- `formatdescriptor.bin` / `formatdescriptor-audio.bin` 是独立的 fdsc 块，
+  直接喂 `FormatDescriptor.from_bytes`。
+
+## 9. 已知移植注意点
 
 - `formatdescriptor.py` 的 SPS/PPS 提取采用递归扫 avcC 记录的方式，与 Go 版
-  （固定 extension key）实现不同，**需在真机数据上验证**（fixture `asyn-feed` 可先验）。
-- fixture 文件是去掉长度前缀的帧；我方构造的发包含长度前缀，对比时注意。
+  （固定 extension key）实现不同，fixture 上已验证，**仍需在真机数据上复验**。
 - 设备对 HPD1/HPA1 的字典字节序敏感，序列化必须与 Go 版逐字节一致（有 fixture 测试兜底）。

@@ -1,24 +1,23 @@
 """用 Go 原版仓库自带的真机抓包 fixture 验证 Python 解析/序列化。
 
-fixture 位置: reference/quicktime_video_hack/screencapture/packet/fixtures
+fixture 已随仓库提供(tests/fixtures/packet, 拷贝自
+reference/quicktime_video_hack/screencapture/packet/fixtures, MIT 协议),
+克隆本仓库即可直接跑; 若本地拷贝缺失则回退到 reference 克隆。
 注意: fixture 文件是"已去掉长度前缀"的帧(与 Go 测试一致)。
 """
 import pathlib
-
-import pytest
 
 from imirror.protocol import constants as c
 from imirror.protocol import sync as sync_pkt
 from imirror.protocol import asyn as asyn_pkt
 from imirror.protocol.ping import new_ping_packet
 
-FIXTURES = (
-    pathlib.Path(__file__).resolve().parent.parent
-    / "reference/quicktime_video_hack/screencapture/packet/fixtures"
-)
-
-pytestmark = pytest.mark.skipif(
-    not FIXTURES.is_dir(), reason="reference 仓库未克隆, 跳过 fixture 测试"
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
+FIXTURES = next(
+    p for p in (
+        _ROOT / "tests/fixtures/packet",
+        _ROOT / "reference/quicktime_video_hack/screencapture/packet/fixtures",
+    ) if p.is_dir()
 )
 
 
@@ -84,6 +83,19 @@ def test_parse_feed_with_format_description():
     if pkt.sample_buffer.has_format_description:
         fd = pkt.sample_buffer.format_description
         assert fd.width > 0 and fd.height > 0
+
+
+def test_parse_feed_without_format_description():
+    """不带 fdsc 的普通视频帧(非关键帧场景)也要能解析。
+
+    注意: 该 fixture 与 asyn-eat 一样不含长度前缀(Go 测试整文件直接传)。
+    """
+    data = load("asyn-feed-nofdsc")
+    pkt = asyn_pkt.AsynCmSampleBufPacket.from_bytes(data)
+    sbuf = pkt.sample_buffer
+    assert sbuf.media_type == c.MEDIA_TYPE_VIDEO
+    assert not sbuf.has_format_description
+    assert len(list(sbuf.iter_nalus())) >= 1
 
 
 def test_parse_eat_audio_samplebuffer():
