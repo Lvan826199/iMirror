@@ -28,6 +28,71 @@ def _fmt_bytes(n: int) -> str:
     return f"{n}B"
 
 
+def cmd_doctor(_args) -> int:
+    """环境自检: 逐项检查并给出当前平台的修复建议, 没接 iPhone 也能跑。"""
+    import platform
+    os_name = platform.system()   # Linux / Darwin / Windows
+    friendly = {"Darwin": "macOS"}.get(os_name, os_name)
+    print(f"平台    : {friendly} ({platform.platform()})")
+    print(f"Python  : {sys.version.split()[0]}")
+
+    try:
+        import usb.core
+        import usb.util
+    except ImportError:
+        print('✗ pyusb 未安装        修复: 在项目目录执行 pip install -e ".[dev]"')
+        return 1
+    print("✓ pyusb 已安装")
+
+    from .usb import discovery
+    try:
+        apple_devs = list(discovery.usb_find(find_all=True, idVendor=discovery.APPLE_VID))
+    except usb.core.NoBackendError:
+        print("✗ 找不到 libusb 运行库")
+        print({
+            "Windows": "  修复: pip install libusb-package",
+            "Darwin": "  修复: brew install libusb",
+        }.get(os_name, "  修复: sudo apt install libusb-1.0-0 (或发行版对应包)"))
+        return 1
+    print("✓ libusb 后端可用")
+
+    if not apple_devs:
+        print("✗ 未发现 Apple USB 设备 (vid=05ac)")
+        print("  检查: 数据线要支持数据传输 / 手机解锁并点了\"信任\" / 换个 USB 口")
+        if os_name == "Windows":
+            print("  Windows 还需: 用 Zadig 把 iPhone 驱动换成 libusbK 或 WinUSB")
+        return 1
+    print(f"✓ 发现 {len(apple_devs)} 个 Apple USB 设备")
+
+    denied = 0
+    for dev in apple_devs:
+        try:
+            usb.util.get_string(dev, dev.iSerialNumber)
+        except (usb.core.USBError, NotImplementedError) as e:
+            denied += 1
+            print(f"✗ 设备 {dev.idVendor:04x}:{dev.idProduct:04x} 无法访问: {e}")
+        finally:
+            usb.util.dispose_resources(dev)
+    if denied:
+        print({
+            "Linux": "  修复: 加 udev 规则(见 docs/真机联调手册.md)或在命令前加 sudo",
+            "Windows": "  修复: 用 Zadig 换驱动为 libusbK/WinUSB, 并停用 Apple Mobile Device Support 服务",
+            "Darwin": "  修复: 退出可能占用设备的程序(QuickTime、爱思助手等)后重试",
+        }.get(os_name, ""))
+        return 1
+    print("✓ 设备可访问 (权限/驱动正常)")
+
+    ios = [d for d in (discovery.find_ios_devices() or [])]
+    if not ios:
+        print("✗ 没有识别出 iOS 设备 (发现的可能是键盘/耳机等 Apple 外设)")
+        return 1
+    for d in ios:
+        state = "已激活" if d.qt_enabled else "未激活 (record 时会自动激活)"
+        print(f"✓ {d.serial}  {d.product_name}  QT配置: {state}")
+    print("\n环境就绪, 下一步: python -m imirror record out.h264 out.wav --duration 10")
+    return 0
+
+
 def cmd_devices(args) -> int:
     from .usb.discovery import find_ios_devices
     devices = find_ios_devices()
@@ -147,6 +212,8 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    sub.add_parser("doctor", help="环境自检(跨平台, 不需要 iPhone)")
+
     p = sub.add_parser("devices", help="列出 iOS 设备")
     p.add_argument("--json", action="store_true", help="以 JSON 输出(便于脚本调用)")
 
@@ -169,6 +236,7 @@ def main(argv=None) -> int:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     handlers = {
+        "doctor": cmd_doctor,
         "devices": cmd_devices,
         "activate": cmd_activate,
         "record": cmd_record,

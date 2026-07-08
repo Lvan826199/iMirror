@@ -23,6 +23,15 @@ SUBCLASS_USBMUX = 0xFE   # gousb.ClassApplication 在此上下文即 0xFE? 以�
 SUBCLASS_QUICKTIME = 0x2A
 
 
+def usb_find(**kwargs):
+    """优先用 libusb-package 自带的 libusb 后端(Windows 免装 dll), 否则走 pyusb 默认查找。"""
+    try:
+        import libusb_package
+        return libusb_package.find(**kwargs)
+    except ImportError:
+        return usb.core.find(**kwargs)
+
+
 @dataclass
 class IosDevice:
     serial: str
@@ -39,7 +48,7 @@ class IosDevice:
 
 def find_ios_devices() -> list[IosDevice]:
     devices = []
-    for dev in usb.core.find(find_all=True, idVendor=APPLE_VID):
+    for dev in usb_find(find_all=True, idVendor=APPLE_VID):
         try:
             info = _inspect(dev)
         except (usb.core.USBError, ValueError) as e:
@@ -53,7 +62,7 @@ def find_ios_devices() -> list[IosDevice]:
 
 
 def open_by_serial(serial: str) -> usb.core.Device:
-    for dev in usb.core.find(find_all=True, idVendor=APPLE_VID):
+    for dev in usb_find(find_all=True, idVendor=APPLE_VID):
         try:
             if usb.util.get_string(dev, dev.iSerialNumber) == serial:
                 return dev

@@ -14,6 +14,9 @@ gui = [
     "av>=12.0",
     "opencv-python>=4.9",
 ]
+windows = [
+    "libusb-package>=1.0",   # 自带 libusb 运行库, Windows 免手动放 dll
+]
 dev = [
     "pytest>=8.0",
 ]

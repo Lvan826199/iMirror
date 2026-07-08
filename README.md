@@ -69,7 +69,8 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 ## Requirements
 
 - Python 3.10+
-- libusb 运行环境
+- Windows / macOS / Linux 均可（各系统的准备步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)）
+- libusb 运行环境（Windows 装 `.[windows]` 附加项即自带；macOS `brew install libusb`；Linux 发行版包）
 - iPhone 或 iPad，以及可信任的数据线连接
 - Windows 用户需要用 Zadig 为设备安装 libusbK 或 WinUSB 驱动
 
@@ -114,6 +115,12 @@ pip install -e ".[gui]"
 
 ```bash
 pytest
+```
+
+环境自检（跨平台，逐项给出当前系统的修复建议）：
+
+```bash
+python -m imirror doctor
 ```
 
 列出已连接的 iOS 设备：
@@ -161,6 +168,7 @@ imirror record out.h264 out.wav
 
 | 命令 | 用途 |
 | --- | --- |
+| `imirror doctor` | 环境自检，逐项检查并给出当前系统的修复建议 |
 | `imirror devices [--json]` | 列出 iOS 设备以及 QuickTime 配置状态 |
 | `imirror activate [--udid SERIAL]` | 激活指定设备的 QuickTime 配置 |
 | `imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]` | 录制视频和音频 |
