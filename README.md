@@ -18,9 +18,9 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 | 我想… | 看哪份 |
 | --- | --- |
 | 安装并使用（列设备/录制/预览） | 本 README 的 Installation + Quick Start |
-| **接上真机开始联调**（一步步操作+预期输出+验收清单） | [docs/field-testing.md](docs/field-testing.md) |
-| 查协议细节（报文格式/时序图/fixture 约定） | [docs/protocol.md](docs/protocol.md) |
-| 了解已知问题和剩余工作 | 本 README 的 Roadmap + protocol.md 第 9 节 |
+| **接上真机开始联调**（一步步操作+预期输出+验收清单） | [docs/真机联调手册.md](docs/真机联调手册.md) |
+| 查协议细节（报文格式/时序图/fixture 约定） | [docs/协议速查.md](docs/协议速查.md) |
+| 了解已知问题和剩余工作 | 本 README 的 Roadmap + 协议速查.md 第 9 节 |
 
 ## Project Status
 
@@ -64,7 +64,7 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 数据流：USB bulk 读循环把字节流按 4 字节长度前缀分帧 → `MessageProcessor`
 按 PING/SYNC/ASYN 分派、维护时钟握手与 NEED 流控 → 解出的 `CMSampleBuffer`
 交给消费者（文件写入器 / GUI），彼此通过 `Consumer` 协议解耦，可用
-`CompositeConsumer` 组合多路输出。会话时序图见 [docs/protocol.md](docs/protocol.md)。
+`CompositeConsumer` 组合多路输出。会话时序图见 [docs/协议速查.md](docs/协议速查.md)。
 
 ## Requirements
 
@@ -204,7 +204,7 @@ Linux 通常只需要配置 udev 权限，或使用 sudo 运行命令。
 - fixture 大多带 4 字节长度前缀，解析测试使用 `load_stripped`；
   `asyn-eat` 与 `asyn-feed-nofdsc` 不带长度前缀（Go 测试也是整文件直传）。
 
-更多细节（含会话时序图、fixture 约定）见 [docs/protocol.md](docs/protocol.md)。
+更多细节（含会话时序图、fixture 约定）见 [docs/协议速查.md](docs/协议速查.md)。
 
 ## Development
 
@@ -250,7 +250,9 @@ imirror/
 │   └── gui/                    # 实时预览
 ├── tests/                      # pytest 测试
 │   └── fixtures/               # 真机抓包 fixture(拷贝自 Go 原版, MIT), 开箱即跑
-├── docs/protocol.md            # 协议速查 + 会话时序图
+├── docs/
+│   ├── 协议速查.md             # 协议速查 + 会话时序图
+│   └── 真机联调手册.md         # 联调分步操作 + 验收清单
 └── reference/                  # 上游 Go/C++ 参考实现，只读，不入 git
 ```
 
