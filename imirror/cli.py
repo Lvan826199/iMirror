@@ -104,8 +104,13 @@ def cmd_record(args) -> int:
         # 周期性打印帧数/数据量, 顺带充当 --duration 的计时器
         elapsed = 0.0
         interval = 5.0
-        while not stop_event.wait(interval):
-            elapsed += interval
+        while True:
+            step = interval
+            if args.duration:
+                step = min(step, args.duration - elapsed)
+            if stop_event.wait(step):
+                break
+            elapsed += step
             s = processor.stats
             fps = s["video_frames"] / elapsed if elapsed else 0
             print(f"  [{elapsed:5.0f}s] 视频 {s['video_frames']} 帧 (~{fps:.1f}fps, "

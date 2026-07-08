@@ -61,7 +61,8 @@ class MessageProcessor:
         self._audio_count = 0
         self._video_bytes = 0
         self._audio_bytes = 0
-        self.release_event = threading.Event()
+        # 计数信号量: 两个 RELS 可能到得很快, Event 会丢第二次(Go 用阻塞 channel 同样不丢)
+        self._release_sem = threading.Semaphore(0)
 
     @property
     def stats(self) -> dict:
@@ -172,7 +173,7 @@ class MessageProcessor:
             log.debug("收到 ASYN %s (忽略)", c.magic_to_ascii(subtype))
         elif subtype == c.RELS:
             log.debug("收到 ASYN RELS")
-            self.release_event.set()
+            self._release_sem.release()
         else:
             log.warning("未知 ASYN 子类型: %s", frame[12:16])
             self._stop_callback()
@@ -189,13 +190,19 @@ class MessageProcessor:
     # -------------------------------------------------- 关闭
 
     def close_session(self, timeout: float = 3.0) -> None:
-        """通知设备停止推流: 发 HPA0/HPD0, 各等一次 RELS。"""
+        """通知设备停止推流。
+
+        对照 Go CloseSession (messageprocessor.go): HPA0/HPD0 背靠背发出,
+        等 2 次 RELS(每次最多 timeout 秒, 超时直接放弃), 收齐后结尾再补发一次 HPD0。
+        """
         log.info("请求设备停止推流...")
-        self.release_event.clear()
         self._write(asyn_pkt.new_asyn_hpa0_packet(self._device_audio_clock_ref))
-        self.release_event.wait(timeout)
-        self.release_event.clear()
         self._write(asyn_pkt.new_asyn_hpd0_packet())
-        self.release_event.wait(timeout)
+        for _ in range(2):
+            if not self._release_sem.acquire(timeout=timeout):
+                log.warning("等待设备 RELS 超时")
+                break
+        else:
+            self._write(asyn_pkt.new_asyn_hpd0_packet())
         self._consumer.stop()
         log.info("会话已关闭 (视频帧:%d 音频帧:%d)", self._video_count, self._audio_count)
