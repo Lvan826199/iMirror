@@ -13,6 +13,15 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 当前目标是提供一个可测试、可维护的 QuickTime 有线投屏采集库和命令行工具，用于录制 H.264
 视频流和 LPCM 音频流。
 
+## 文档导航
+
+| 我想… | 看哪份 |
+| --- | --- |
+| 安装并使用（列设备/录制/预览） | 本 README 的 Installation + Quick Start |
+| **接上真机开始联调**（一步步操作+预期输出+验收清单） | [docs/field-testing.md](docs/field-testing.md) |
+| 查协议细节（报文格式/时序图/fixture 约定） | [docs/protocol.md](docs/protocol.md) |
+| 了解已知问题和剩余工作 | 本 README 的 Roadmap + protocol.md 第 9 节 |
+
 ## Project Status
 
 项目仍处于实验阶段。协议层、CoreMedia 解析和报文序列化已经完成，并通过真机抓包 fixture

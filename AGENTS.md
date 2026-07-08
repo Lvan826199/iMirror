@@ -4,7 +4,8 @@
 > `CLAUDE.md` 仅是对本文件的引用，内容改这里即可。
 
 iOS 有线投屏采集的 Python 实现，移植自 Go 版 quicktime_video_hack。
-先读 `README.md`（现状与剩余工作）和 `docs/protocol.md`（协议速查）。
+先读 `README.md`（现状与剩余工作）和 `docs/protocol.md`（协议速查）；
+真机联调按 `docs/field-testing.md` 的步骤和验收清单执行。
 
 ## 关键约定
 
