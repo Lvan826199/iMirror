@@ -95,18 +95,17 @@ uv venv .venv
 uv pip install --python .venv\Scripts\python.exe -e ".[dev]"
 ```
 
-如果不使用 `uv`，也可以用标准虚拟环境：
+没装 uv 的先装一下（单个二进制，不依赖系统 Python）：
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+curl -LsSf https://astral.sh/uv/install.sh | sh                              # macOS/Linux
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"   # Windows
 ```
 
 安装 GUI 可选依赖：
 
 ```bash
-pip install -e ".[gui]"
+uv pip install --python .venv/bin/python -e ".[gui]"
 ```
 
 ## Quick Start
