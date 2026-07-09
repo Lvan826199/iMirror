@@ -33,7 +33,7 @@ def enable_qt_config(device: IosDevice, retries: int = 30) -> IosDevice:
             return device
         try:
             dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_ENABLE, b"")
-        except usb.core.USBError as e:
+        except (usb.core.USBError, NotImplementedError) as e:
             # 设备收到请求后立即断开, 这里报 pipe error/no device 是正常现象
             log.debug("激活请求后设备断开(正常): %s", e)
     finally:
@@ -67,7 +67,7 @@ def disable_qt_config(device: IosDevice) -> None:
         dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_DISABLE, b"")
         if device.usbmux_config_index != -1:
             dev.set_configuration(device.usbmux_config_index)
-    except usb.core.USBError as e:
+    except (usb.core.USBError, NotImplementedError) as e:
         log.debug("关闭 QT 配置时设备断开(正常): %s", e)
     finally:
         usb.util.dispose_resources(dev)

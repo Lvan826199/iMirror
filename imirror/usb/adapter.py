@@ -67,7 +67,13 @@ class UsbAdapter:
                 except (usb.core.USBError, NotImplementedError) as e2:
                     log.warning("SET_CONFIGURATION 控制请求也失败: %s", e2)
 
-        cfg = dev.get_active_configuration()
+        try:
+            cfg = dev.get_active_configuration()
+        except (usb.core.USBError, NotImplementedError) as e:
+            raise RuntimeError(
+                f"无法读取活动 USB 配置: {e}。Windows 上多为驱动未就绪, "
+                f"请对当前形态的 iPhone 用 Zadig 换 libusbK(详见 docs/真机联调手册.md)"
+            ) from e
         if cfg.bConfigurationValue != target:
             log.warning("活动配置仍是 #%d(目标 #%d), 尝试直接在当前配置里找 QT 接口",
                         cfg.bConfigurationValue, target)
@@ -108,8 +114,9 @@ class UsbAdapter:
         for ep in (self._ep_in, self._ep_out):
             try:
                 dev.clear_halt(ep.bEndpointAddress)
-            except usb.core.USBError as e:
-                log.warning("clear_halt(0x%02x) 失败: %s", ep.bEndpointAddress, e)
+            # Windows/libusbK 下 clear_halt 可能返回 NOT_SUPPORTED(NotImplementedError)
+            except (usb.core.USBError, NotImplementedError) as e:
+                log.warning("clear_halt(0x%02x) 失败(可忽略): %s", ep.bEndpointAddress, e)
         log.info("已 claim QuickTime 接口 #%d (in:0x%02x out:0x%02x)",
                  self._interface_number,
                  self._ep_in.bEndpointAddress, self._ep_out.bEndpointAddress)

@@ -20,6 +20,7 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 | 安装并使用（列设备/录制/预览） | 本 README 的 Installation + Quick Start |
 | **接上真机开始联调**（一步步操作+预期输出+验收清单） | [docs/真机联调手册.md](docs/真机联调手册.md) |
 | 查协议细节（报文格式/时序图/fixture 约定） | [docs/协议速查.md](docs/协议速查.md) |
+| **联调踩坑/改代码前**（真机 bug 根因与防复发规约） | [docs/已知问题与归因.md](docs/已知问题与归因.md) |
 | 了解已知问题和剩余工作 | 本 README 的 Roadmap + 协议速查.md 第 9 节 |
 
 ## Project Status
