@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import time
 
 import usb.core
@@ -23,7 +24,7 @@ INDEX_ENABLE = 2
 INDEX_DISABLE = 0
 
 
-def enable_qt_config(device: IosDevice, retries: int = 10) -> IosDevice:
+def enable_qt_config(device: IosDevice, retries: int = 30) -> IosDevice:
     """激活 QuickTime 配置, 返回重新枚举后的设备信息。"""
     dev = open_by_serial(device.serial)
     try:
@@ -51,7 +52,13 @@ def enable_qt_config(device: IosDevice, retries: int = 10) -> IosDevice:
         if info is not None and info.qt_enabled:
             log.info("%s QT 配置已激活 (config #%d)", info.serial, info.qt_config_index)
             return info
-    raise RuntimeError(f"无法为 {device.serial} 激活 QuickTime 配置")
+    hint = ""
+    if sys.platform == "win32":
+        hint = ("\nWindows 常见原因: 激活后设备以新形态重新枚举, Windows 给它派了默认驱动。"
+                "\n自救: 保持手机连接, 重新打开 Zadig(勾 List All Devices、取消勾 Ignore Hubs"
+                "\n      or Composite Parents), 给新出现的 iPhone 条目再换一次 libusbK,"
+                "\n      然后跑 doctor 应显示 QT配置: 已激活。详见 docs/真机联调手册.md")
+    raise RuntimeError(f"无法为 {device.serial} 激活 QuickTime 配置{hint}")
 
 
 def disable_qt_config(device: IosDevice) -> None:

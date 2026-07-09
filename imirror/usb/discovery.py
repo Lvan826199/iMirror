@@ -62,10 +62,15 @@ def find_ios_devices() -> list[IosDevice]:
     return devices
 
 
+def clean_str(s: str | None) -> str:
+    """iPhone 的 USB 字符串描述符常带 NUL 填充(打印不可见但比较不相等), 统一清洗。"""
+    return (s or "").replace("\x00", "").strip()
+
+
 def open_by_serial(serial: str) -> usb.core.Device:
     for dev in usb_find(find_all=True, idVendor=APPLE_VID):
         try:
-            if usb.util.get_string(dev, dev.iSerialNumber) == serial:
+            if clean_str(usb.util.get_string(dev, dev.iSerialNumber)) == serial:
                 return dev
         except (usb.core.USBError, ValueError):
             # ValueError(no langid): Windows 未换驱动/Linux 无权限时读不了字符串描述符
@@ -86,8 +91,8 @@ def _inspect(dev: usb.core.Device) -> IosDevice | None:
                 qtconfig = cfg.bConfigurationValue
     if muxconfig == -1 and qtconfig == -1:
         return None  # 不是 iOS 设备(如 Apple 键盘)
-    serial = usb.util.get_string(dev, dev.iSerialNumber) or ""
-    product = usb.util.get_string(dev, dev.iProduct) or ""
+    serial = clean_str(usb.util.get_string(dev, dev.iSerialNumber))
+    product = clean_str(usb.util.get_string(dev, dev.iProduct))
     return IosDevice(
         serial=serial, product_name=product,
         vid=dev.idVendor, pid=dev.idProduct,

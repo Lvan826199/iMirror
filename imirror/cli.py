@@ -131,9 +131,13 @@ def _pick_device(udid: str | None, need_qt: bool = False):
     from .usb.activation import enable_qt_config
     devices = find_ios_devices()
     if udid:
-        devices = [d for d in devices if d.serial == udid]
+        matched = [d for d in devices if d.serial == udid]
+        if not matched:
+            seen = ", ".join(d.serial for d in devices) or "无"
+            raise SystemExit(f"未找到序列号 {udid} 的设备。当前可见: {seen}")
+        devices = matched
     if not devices:
-        raise SystemExit("未找到设备")
+        raise SystemExit("未找到设备, 先跑: python -m imirror doctor")
     device = devices[0]
     if need_qt and not device.qt_enabled:
         log.info("QT 配置未激活, 正在激活 %s ...", device.serial)
