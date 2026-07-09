@@ -30,8 +30,8 @@ else
 fi
 
 # ---- 4/5 依赖 ----
-echo "[4/5] 安装项目依赖..."
-uv pip install --python .venv/bin/python -e ".[dev]"
+echo "[4/5] 安装全部依赖(dev+gui, 含投屏预览所需的解码库)..."
+uv pip install --python .venv/bin/python -e ".[dev,gui]"
 
 # ---- 5/5 离线测试 ----
 echo "[5/5] 运行离线测试(不需要 iPhone)..."

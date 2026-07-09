@@ -34,8 +34,8 @@ if not exist ".venv" (
 )
 
 rem ---- 3/5 依赖 ----
-echo [3/5] 安装项目依赖 dev + windows 附加项, 自带 libusb ...
-uv pip install --python .venv\Scripts\python.exe -e ".[dev,windows]"
+echo [3/5] 安装全部依赖 dev+windows+gui, 含 libusb 与投屏预览所需的解码库 ...
+uv pip install --python .venv\Scripts\python.exe -e ".[dev,windows,gui]"
 if errorlevel 1 goto :fail
 
 rem ---- 4/5 离线测试 ----
