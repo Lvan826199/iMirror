@@ -75,8 +75,10 @@ echo   2. 右键以管理员身份运行本目录自带的 scripts\zadig-2.9.exe
 echo   3. Options 菜单: 勾选 List All Devices,
 echo      并且取消勾选 Ignore Hubs or Composite Parents, 这步是关键
 echo   4. 下拉框按 USB ID 列选 05AC 12A8 的条目, 名字可能只显示 Apple,
-echo      有多个就选标 Composite Parent 的, 驱动选 libusbK, Replace Driver
-echo   5. 校验: 设备管理器出现 libusbK Usb Devices 分类且 iPhone 在其下
+echo      有多个就选标 Composite Parent 的, 驱动选 libusb-win32, Replace Driver
+echo      注意: 必须选 libusb-win32, 不是 libusbK; 投屏接口在非默认配置,
+echo            只有 libusb-win32 支持切配置。名字带 win32 但 64 位系统照样用
+echo   5. 校验: 换好后跑 doctor 能识别设备且 record 不报 set_configuration 错
 echo 完成后重新运行本脚本或单独跑 doctor 复查
 goto :end
 

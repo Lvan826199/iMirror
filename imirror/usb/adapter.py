@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 from typing import Callable
 
@@ -85,11 +86,13 @@ class UsbAdapter:
             ),
         )
         if intf is None:
-            raise RuntimeError(
-                f"活动配置 #{cfg.bConfigurationValue} 里没有 QuickTime 接口"
-                f"(目标配置 #{target})。若在 Windows 且上方有 set_configuration"
-                f" 失败告警, 请把 -v 完整日志反馈, 这是当前联调要解决的问题"
-            )
+            msg = (f"活动配置 #{cfg.bConfigurationValue} 里没有 QuickTime 接口"
+                   f"(它在配置 #{target})。")
+            if sys.platform == "win32":
+                msg += ("\nWindows 根因: 投屏接口在非默认 USB 配置上, 而 libusbK/WinUSB "
+                        "驱动不支持切换配置。\n解决: 用 Zadig 把该设备的驱动从 libusbK "
+                        "改成 libusb-win32(libusb0), 它支持切配置。\n详见 docs/真机联调手册.md 的驱动选择表。")
+            raise RuntimeError(msg)
         self._interface_number = intf.bInterfaceNumber
         usb.util.claim_interface(dev, self._interface_number)
 
