@@ -187,17 +187,6 @@ imirror record out.h264 out.wav
 
 可以添加 `-v` 或 `--verbose` 输出更详细日志（观察协议握手细节）。
 
-## Windows Driver Setup
-
-Windows 下 Apple Mobile Device Support 会占用原生 iOS USB 接口，通常需要切换到 libusb 驱动：
-
-1. 卸载或停用 Apple Mobile Device Support。
-2. 使用 [Zadig](https://zadig.akeo.ie/) 将 iPhone/iPad 的驱动替换为 libusbK 或 WinUSB。
-3. 安装 libusb 运行库，例如 `pip install libusb-package`，或将 `libusb-1.0.dll` 放入 `PATH`。
-4. 首次连接设备时，在手机上选择信任此电脑。
-
-Linux 通常只需要配置 udev 权限，或使用 sudo 运行命令。
-
 ## Troubleshooting
 
 | 现象 | 原因与处理 |
@@ -219,10 +208,9 @@ Linux 通常只需要配置 udev 权限，或使用 sudo 运行命令。
 - 发给设备的 HPD1、HPA1、RPLY、NEED 等报文必须与 Go 版逐字节一致。
 - USB bulk 流使用 4 字节小端长度前缀分帧。
 - `ASYN FEED` 视频帧消费后必须回 `NEED`，否则设备会停止继续推流。
-- fixture 大多带 4 字节长度前缀，解析测试使用 `load_stripped`；
-  `asyn-eat` 与 `asyn-feed-nofdsc` 不带长度前缀（Go 测试也是整文件直传）。
 
-更多细节（含会话时序图、fixture 约定）见 [docs/协议速查.md](docs/协议速查.md)。
+更多细节（含会话时序图、fixture 前缀约定、与 Go 版的已知差异）见
+[docs/协议速查.md](docs/协议速查.md)。
 
 ## Development
 

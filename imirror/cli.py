@@ -26,7 +26,6 @@ def _fmt_bytes(n: int) -> str:
         if n < 1024 or unit == "GB":
             return f"{n:.1f}{unit}" if unit != "B" else f"{n}B"
         n /= 1024
-    return f"{n}B"
 
 
 def cmd_doctor(_args) -> int:
