@@ -81,7 +81,17 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 
 ## Installation
 
-推荐使用 `uv` 创建开发环境：
+**一键安装（推荐）**——自动完成装 uv → 建环境 → 装依赖 → 离线测试 → 环境自检：
+
+```
+Windows: 双击 scripts\setup-windows.bat
+macOS:   bash scripts/setup-macos.sh
+```
+
+（Windows 之后还需手动用 Zadig 换一次驱动，脚本结尾和
+[docs/真机联调手册.md](docs/真机联调手册.md) 都有指引。）
+
+手动安装则使用 `uv` 创建开发环境：
 
 ```bash
 uv venv .venv
@@ -257,6 +267,9 @@ imirror/
 │   └── gui/                    # 实时预览
 ├── tests/                      # pytest 测试
 │   └── fixtures/               # 真机抓包 fixture(拷贝自 Go 原版, MIT), 开箱即跑
+├── scripts/
+│   ├── setup-windows.bat       # Windows 一键环境安装
+│   └── setup-macos.sh          # macOS 一键环境安装
 ├── docs/
 │   ├── 协议速查.md             # 协议速查 + 会话时序图
 │   └── 真机联调手册.md         # 联调分步操作 + 验收清单

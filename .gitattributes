@@ -1,0 +1,3 @@
+# bat 必须 CRLF, sh 必须 LF, 其余按平台默认
+*.bat text eol=crlf
+*.sh  text eol=lf
