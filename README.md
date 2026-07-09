@@ -268,8 +268,11 @@ imirror/
 
 ## Roadmap
 
-- 跑通更多真机环境下的 `record` 流程。
-- 验证 USB 激活后的重枚举时序和 `clear_halt` 行为。
+- **Windows 完整支持**：当前在复合子接口的 bulk 读写上撞墙（控制传输可用但 bulk
+  路由不到子接口，Windows 复合设备驱动模型固有问题）。需移植 usbmuxd/lockdown 让
+  设备以 QuickTime 为默认配置重新枚举（参考 chotgpt 的 C++ 版方案）。详见
+  [docs/已知问题与归因.md](docs/已知问题与归因.md) C 类 #5。
+- 在 Linux/macOS 上跑通 `record`/`gui`（协议实现为 Go 版忠实移植，理论直接可用）。
 - 进一步确认 `formatdescriptor.py` 中 SPS/PPS 提取位置。
 - 优化 GUI 延迟、解码进程和丢帧策略。
 - 增加音画同步、RTMP/WebRTC 推流和虚拟摄像头输出。
