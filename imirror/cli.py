@@ -207,11 +207,16 @@ def cmd_record(args) -> int:
 
 def cmd_gui(args) -> int:
     try:
+        # av/cv2 在 viewer 函数体内才 import, 所以要把调用也包进来
         from .gui.viewer import run_viewer
+        return run_viewer(args.udid)
     except ImportError as e:
-        print(f"GUI 依赖缺失({e})。安装: pip install av opencv-python")
+        print(f"GUI 依赖缺失({e.name})。在项目目录安装:")
+        if sys.platform == "win32":
+            print('  uv pip install --python .venv\\Scripts\\python.exe -e ".[gui]"')
+        else:
+            print('  uv pip install --python .venv/bin/python -e ".[gui]"')
         return 1
-    return run_viewer(args.udid)
 
 
 def main(argv=None) -> int:
