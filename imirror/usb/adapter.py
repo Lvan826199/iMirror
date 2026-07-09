@@ -96,6 +96,18 @@ class UsbAdapter:
         self._interface_number = intf.bInterfaceNumber
         usb.util.claim_interface(dev, self._interface_number)
 
+        # Windows/libusb-win32 上, 端点常需显式设 altsetting 才真正激活,
+        # 否则 bulk 读写会一直超时。失败(如驱动不支持)可忽略。
+        try:
+            dev.set_interface_altsetting(
+                interface=self._interface_number,
+                alternate_setting=intf.bAlternateSetting,
+            )
+            log.debug("set_interface_altsetting(intf=%d, alt=%d) 成功",
+                      self._interface_number, intf.bAlternateSetting)
+        except (usb.core.USBError, NotImplementedError) as e:
+            log.debug("set_interface_altsetting 失败(可忽略): %s", e)
+
         self._ep_in = usb.util.find_descriptor(
             intf,
             custom_match=lambda e: (
@@ -139,7 +151,13 @@ class UsbAdapter:
     def write(self, frame: bytes) -> None:
         """写一个完整帧(帧本身已含长度前缀)。多线程安全。"""
         with self._write_lock:
-            self._ep_out.write(frame)
+            try:
+                n = self._ep_out.write(frame)
+                log.debug("写出 %d/%d 字节 (magic=%s)", n, len(frame), frame[4:8])
+            except (usb.core.USBError, NotImplementedError) as e:
+                # 写失败会导致设备收不到回复而卡死握手, 必须显式暴露
+                log.error("写 USB 失败(%d 字节 magic=%s): %s", len(frame), frame[4:8], e)
+                raise
 
     def read_loop(self, on_frame: Callable[[bytes], None]) -> None:
         """阻塞读循环, 每解出一个完整帧就调用 on_frame(frame)。
@@ -147,16 +165,24 @@ class UsbAdapter:
         在独立线程里跑; 调用 close() 或读超时且 _stop 置位时退出。
         """
         extractor = LengthFieldExtractor()
+        timeouts = 0
         while not self._stop.is_set():
             try:
                 data = self._ep_in.read(READ_SIZE, timeout=READ_TIMEOUT_MS)
             except usb.core.USBTimeoutError:
+                timeouts += 1
+                # 每 3 次超时(约 6s)提示一次, 便于判断是"读不到数据"还是"读错"
+                if timeouts % 3 == 0:
+                    log.debug("读超时 %d 次(约 %ds 无数据), 仍在等待设备...",
+                              timeouts, timeouts * READ_TIMEOUT_MS // 1000)
                 continue
-            except usb.core.USBError as e:
+            except (usb.core.USBError, NotImplementedError) as e:
                 if self._stop.is_set():
                     break
                 log.error("USB 读错误: %s", e)
                 break
+            timeouts = 0
+            log.debug("读到 %d 字节", len(data))
             for frame in extractor.feed(bytes(data)):
                 on_frame(frame)
         log.info("读循环退出")
