@@ -66,7 +66,8 @@ def open_by_serial(serial: str) -> usb.core.Device:
         try:
             if usb.util.get_string(dev, dev.iSerialNumber) == serial:
                 return dev
-        except usb.core.USBError:
+        except (usb.core.USBError, ValueError):
+            # ValueError(no langid): Windows 未换驱动/Linux 无权限时读不了字符串描述符
             pass
         usb.util.dispose_resources(dev)
     raise RuntimeError(f"未找到序列号为 {serial} 的设备")

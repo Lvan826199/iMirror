@@ -68,7 +68,8 @@ def cmd_doctor(_args) -> int:
     for dev in apple_devs:
         try:
             usb.util.get_string(dev, dev.iSerialNumber)
-        except (usb.core.USBError, NotImplementedError) as e:
+        # Windows 未换驱动/Linux 无权限时, pyusb 可能抛 ValueError(no langid) 而非 USBError
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
             denied += 1
             print(f"✗ 设备 {dev.idVendor:04x}:{dev.idProduct:04x} 无法访问: {e}")
         finally:
