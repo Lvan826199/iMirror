@@ -44,13 +44,33 @@ class UsbAdapter:
         dev = open_by_serial(self._info.serial)
         self._dev = dev
 
-        # Windows(libusb) 下通常无需 detach kernel driver; Linux 下可能需要
+        # 切到 QT 配置。Windows 上 libusb 的 set_configuration 可能报
+        # NotImplementedError(LIBUSB_ERROR_NOT_SUPPORTED), 逐级降级:
+        # 已是目标配置则跳过 -> set_configuration -> 裸 SET_CONFIGURATION 控制请求
+        target = self._info.qt_config_index
+        active = None
         try:
-            dev.set_configuration(self._info.qt_config_index)
-        except usb.core.USBError as e:
-            log.warning("set_configuration 失败(可能已是活动配置): %s", e)
+            active = dev.get_active_configuration().bConfigurationValue
+        except (usb.core.USBError, NotImplementedError) as e:
+            log.debug("读活动配置失败(继续尝试设置): %s", e)
+        if active == target:
+            log.debug("活动配置已是 QT 配置 #%d, 跳过切换", target)
+        else:
+            log.debug("活动配置 #%s -> 目标 QT 配置 #%d", active, target)
+            try:
+                dev.set_configuration(target)
+            except (usb.core.USBError, NotImplementedError) as e:
+                log.warning("set_configuration(%d) 失败: %s — 改用标准控制请求重试", target, e)
+                try:
+                    # bmRequestType=0x00(标准/设备), bRequest=0x09(SET_CONFIGURATION)
+                    dev.ctrl_transfer(0x00, 0x09, target, 0, None)
+                except (usb.core.USBError, NotImplementedError) as e2:
+                    log.warning("SET_CONFIGURATION 控制请求也失败: %s", e2)
 
         cfg = dev.get_active_configuration()
+        if cfg.bConfigurationValue != target:
+            log.warning("活动配置仍是 #%d(目标 #%d), 尝试直接在当前配置里找 QT 接口",
+                        cfg.bConfigurationValue, target)
         intf = usb.util.find_descriptor(
             cfg,
             custom_match=lambda i: (
@@ -59,7 +79,11 @@ class UsbAdapter:
             ),
         )
         if intf is None:
-            raise RuntimeError("活动配置里没有 QuickTime 接口")
+            raise RuntimeError(
+                f"活动配置 #{cfg.bConfigurationValue} 里没有 QuickTime 接口"
+                f"(目标配置 #{target})。若在 Windows 且上方有 set_configuration"
+                f" 失败告警, 请把 -v 完整日志反馈, 这是当前联调要解决的问题"
+            )
         self._interface_number = intf.bInterfaceNumber
         usb.util.claim_interface(dev, self._interface_number)
 

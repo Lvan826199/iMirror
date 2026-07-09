@@ -131,7 +131,9 @@ def _pick_device(udid: str | None, need_qt: bool = False):
     from .usb.activation import enable_qt_config
     devices = find_ios_devices()
     if udid:
-        matched = [d for d in devices if d.serial == udid]
+        # usbmuxd 风格的 udid 带短横线(00008110-xxxx), USB 序列号不带, 两种写法都接受
+        want = udid.replace("-", "").lower()
+        matched = [d for d in devices if d.serial.replace("-", "").lower() == want]
         if not matched:
             seen = ", ".join(d.serial for d in devices) or "无"
             raise SystemExit(f"未找到序列号 {udid} 的设备。当前可见: {seen}")
