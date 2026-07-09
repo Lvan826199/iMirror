@@ -1,6 +1,7 @@
 """命令行入口。
 
 用法:
+  python -m imirror doctor              # 环境自检(跨平台, 不需要 iPhone)
   python -m imirror devices [--json]    # 列出 iOS 设备及 QT 配置状态
   python -m imirror activate            # 激活 QuickTime 配置
   python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制

@@ -42,7 +42,8 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 - 实现 PING、SYNC、ASYN、RPLY、HPD1、HPA1、NEED 等核心协议报文。
 - 解析 CoreMedia 的 `CMSampleBuffer`、`CMTime`、format description 和 QuickTime 字典结构。
 - 将视频帧写入 Annex-B `.h264` 文件，将音频写入 `.wav` 文件。
-- 提供命令行工具：设备列表（含 JSON 输出）、激活、录制（支持限时与实时统计）、实时预览。
+- 提供命令行工具：环境自检（doctor）、设备列表（含 JSON 输出）、激活、录制（支持限时与实时统计）、实时预览。
+- Windows / macOS 一键安装脚本（`scripts/`），Linux 两条命令装好。
 - 使用真机抓包 fixture 进行协议解析和序列化的字节级回归测试，fixture 已随仓库提供，
   克隆即可运行全部测试。
 
