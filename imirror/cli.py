@@ -64,28 +64,39 @@ def cmd_doctor(_args) -> int:
         return 1
     print(f"✓ 发现 {len(apple_devs)} 个 Apple USB 设备")
 
-    denied = 0
+    denied, accessible = 0, 0
     for dev in apple_devs:
         try:
             usb.util.get_string(dev, dev.iSerialNumber)
+            accessible += 1
         # Windows 未换驱动/Linux 无权限时, pyusb 可能抛 ValueError(no langid) 而非 USBError
-        except (usb.core.USBError, NotImplementedError, ValueError) as e:
+        except (usb.core.USBError, NotImplementedError, ValueError):
             denied += 1
-            print(f"✗ 设备 {dev.idVendor:04x}:{dev.idProduct:04x} 无法访问: {e}")
         finally:
             usb.util.dispose_resources(dev)
-    if denied:
+    if accessible == 0:
+        print(f"✗ {denied} 个 Apple 设备节点全部无法访问")
         print({
             "Linux": "  修复: 加 udev 规则(见 docs/真机联调手册.md)或在命令前加 sudo",
-            "Windows": "  修复: 用 Zadig 换驱动为 libusbK/WinUSB, 并停用 Apple Mobile Device Support 服务",
+            "Windows": "  修复: 用 Zadig 给复合父设备(USB ID 05AC 12A8)换 libusbK 驱动,\n"
+                       "        并停用 Apple Mobile Device Support 服务(详见 docs/真机联调手册.md)",
             "Darwin": "  修复: 退出可能占用设备的程序(QuickTime、爱思助手等)后重试",
         }.get(os_name, ""))
         return 1
-    print("✓ 设备可访问 (权限/驱动正常)")
+    if denied:
+        # 复合设备的子接口节点/未换驱动的另一台设备会读不了, 不影响采集
+        print(f"⚠ {accessible} 个节点可访问, {denied} 个不可访问(多为复合设备子接口或未换驱动的其它设备, 可忽略)")
+    else:
+        print("✓ 设备可访问 (权限/驱动正常)")
 
     ios = [d for d in (discovery.find_ios_devices() or [])]
     if not ios:
-        print("✗ 没有识别出 iOS 设备 (发现的可能是键盘/耳机等 Apple 外设)")
+        print("✗ 没有识别出 iOS 设备")
+        if os_name == "Windows":
+            print("  检查: Zadig 里换驱动的对象必须是 Composite Parent(USB ID 05AC 12A8),")
+            print("        换完后设备管理器应出现 libusbK Usb Devices 分类")
+        else:
+            print("  发现的可能是键盘/耳机等 Apple 外设")
         return 1
     for d in ios:
         state = "已激活" if d.qt_enabled else "未激活 (record 时会自动激活)"

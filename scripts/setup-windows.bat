@@ -69,7 +69,7 @@ echo      并且取消勾选 Ignore Hubs or Composite Parents  ^(关键!^)
 echo   4. 下拉框按 USB ID 列选 05AC 12A8 的条目 ^(名字可能只显示 Apple,
 echo      有多个就选标 Composite Parent 的^), 驱动选 libusbK, Replace Driver
 echo   5. 校验: 设备管理器出现 libusbK Usb Devices 分类且 iPhone 在其下
-echo 完成后重新运行本脚本(或单独跑 doctor)复查, 全部打钩即可开始录制:
+echo 完成后重新运行本脚本^(或单独跑 doctor^)复查, 全部打钩即可开始录制:
 echo   .venv\Scripts\python.exe -m imirror record out.h264 out.wav --duration 10
 goto :end
 
