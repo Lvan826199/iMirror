@@ -52,7 +52,8 @@ def find_ios_devices() -> list[IosDevice]:
         try:
             info = _inspect(dev)
         except (usb.core.USBError, ValueError) as e:
-            log.warning("检查设备 %04x:%04x 失败: %s", dev.idVendor, dev.idProduct, e)
+            # 复合设备子接口/未换驱动的设备读不了描述符是常态, 只在 DEBUG 级记录
+            log.debug("检查设备 %04x:%04x 失败: %s", dev.idVendor, dev.idProduct, e)
             continue
         finally:
             usb.util.dispose_resources(dev)

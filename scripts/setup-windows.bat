@@ -57,20 +57,27 @@ echo ============================================
 echo  软件环境就绪! 运行环境自检:
 echo ============================================
 .venv\Scripts\python.exe -m imirror doctor
+if errorlevel 1 goto :driver_help
 
 echo.
 echo --------------------------------------------
-echo 还差最后一步驱动替换, 需要手动完成一次:
+echo 全部就绪! 直接开始录制, 多台设备时加 --udid 序列号 指定:
+echo   .venv\Scripts\python.exe -m imirror -v record out.h264 out.wav --duration 10
+goto :end
+
+:driver_help
+echo.
+echo --------------------------------------------
+echo 自检未通过。若上方提示与驱动/权限有关, 按下列步骤换驱动, 一次性:
 echo   1. Win+R 输入 services.msc 回车, 找到 Apple Mobile Device Service,
-echo      右键停止, 并把启动类型设为"禁用"  ^(没有该服务则跳过^)
-echo   2. 运行本目录自带的 scripts\zadig-2.9.exe ^(右键-以管理员身份运行^)
+echo      右键停止, 并把启动类型设为"禁用", 没有该服务则跳过
+echo   2. 右键以管理员身份运行本目录自带的 scripts\zadig-2.9.exe
 echo   3. Options 菜单: 勾选 List All Devices,
-echo      并且取消勾选 Ignore Hubs or Composite Parents  ^(关键!^)
-echo   4. 下拉框按 USB ID 列选 05AC 12A8 的条目 ^(名字可能只显示 Apple,
-echo      有多个就选标 Composite Parent 的^), 驱动选 libusbK, Replace Driver
+echo      并且取消勾选 Ignore Hubs or Composite Parents, 这步是关键
+echo   4. 下拉框按 USB ID 列选 05AC 12A8 的条目, 名字可能只显示 Apple,
+echo      有多个就选标 Composite Parent 的, 驱动选 libusbK, Replace Driver
 echo   5. 校验: 设备管理器出现 libusbK Usb Devices 分类且 iPhone 在其下
-echo 完成后重新运行本脚本^(或单独跑 doctor^)复查, 全部打钩即可开始录制:
-echo   .venv\Scripts\python.exe -m imirror record out.h264 out.wav --duration 10
+echo 完成后重新运行本脚本或单独跑 doctor 复查
 goto :end
 
 :fail
