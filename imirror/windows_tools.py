@@ -15,7 +15,7 @@ import sys
 
 
 REF_REPO = "https://github.com/chotgpt/quicktime_video_hack_windows"
-DEFAULT_TOOL_DIR = Path("tools") / "quicktime_video_hack_windows" / "tool"
+DEFAULT_TOOL_DIR = Path("tools")
 
 TOOL_FILES = {
     "usbmuxd": "usbmuxd.exe",

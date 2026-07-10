@@ -2,7 +2,7 @@ from imirror import windows_tools
 
 
 def test_find_tool_dir_requires_all_reference_tools(monkeypatch):
-    base = r"C:\qvh\tool"
+    base = r"C:\qvh\tools"
     present = {base + "\\" + rel for rel in windows_tools.TOOL_FILES.values()}
     monkeypatch.setenv("IMIRROR_QVH_TOOLS", base)
     monkeypatch.setattr(windows_tools.Path, "exists", lambda self: str(self) in present)

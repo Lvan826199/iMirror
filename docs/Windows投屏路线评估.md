@@ -27,7 +27,7 @@ raw USB QuickTime 保留为高级/实验模式。
 - quicktime_video_hack_windows：证明 Windows raw USB QuickTime 可以做成，但需要 usbmuxd、
   libusb0/libusb 驱动路径，用户门槛高。它的 `tool/` 目录非常有价值，包含修改过的
   `usbmuxd.exe`、`ideviceinfo.exe`、`idevice_id.exe`、`iproxy.exe` 和驱动安装器；本项目为
-  私有化内部使用，已将这些 tools vendor 到 `tools/quicktime_video_hack_windows/tool/`，并保留
+  私有化内部使用，已将这些 tools vendor 到 `tools/`，并保留
   上游 `LICENSE`/`README.md` 作为来源记录。
   参考：https://github.com/chotgpt/quicktime_video_hack_windows
 - ios-screen-record：Windows 文档走 libusb-win32 + usbmuxd，进一步说明 raw USB 路线绕不开
