@@ -302,8 +302,9 @@ imirror/
 ## Roadmap
 
 - **Windows 完整支持**：当前已按 C++ 参考补上读超时时的 vendor `0x40/0x40/0x6400/0x6400`
-  “唤醒敲门”与主动 PING 兜底；仍需更多真机验证 libusb-win32 在不同设备/驱动实例下
-  的 bulk 稳定性。换机验证步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)
+  “唤醒敲门”与主动 PING 兜底，bulk OUT 写入已加显式超时，避免 Windows 端点不通时
+  卡死；仍需更多真机验证 libusb-win32 在不同设备/驱动实例下的 bulk 稳定性。
+  换机验证步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)
   第 4.1 节；根因详见
   [docs/已知问题与归因.md](docs/已知问题与归因.md) C 类 #5。
 - 在 Linux/macOS 上跑通 `record`/`gui`；Ubuntu 首轮按手册第 4.1 节先排除

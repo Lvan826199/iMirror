@@ -26,6 +26,7 @@ log = logging.getLogger(__name__)
 
 READ_SIZE = 65536
 READ_TIMEOUT_MS = 2000
+WRITE_TIMEOUT_MS = 2000
 
 
 class UsbAdapter:
@@ -164,13 +165,19 @@ class UsbAdapter:
 
     def write(self, frame: bytes) -> None:
         """写一个完整帧(帧本身已含长度前缀)。多线程安全。"""
+        self._write_frame(frame, log_errors=True)
+
+    def _write_frame(self, frame: bytes, *, log_errors: bool) -> None:
         with self._write_lock:
             try:
-                n = self._ep_out.write(frame)
+                n = self._ep_out.write(frame, timeout=WRITE_TIMEOUT_MS)
                 log.debug("写出 %d/%d 字节 (magic=%s)", n, len(frame), frame[4:8])
             except (usb.core.USBError, NotImplementedError, ValueError) as e:
                 # 写失败会导致设备收不到回复而卡死握手, 必须显式暴露
-                log.error("写 USB 失败(%d 字节 magic=%s): %s", len(frame), frame[4:8], e)
+                if log_errors:
+                    log.error("写 USB 失败(%d 字节 magic=%s): %s", len(frame), frame[4:8], e)
+                else:
+                    log.debug("探测写 USB 失败(%d 字节 magic=%s): %s", len(frame), frame[4:8], e)
                 raise
 
     def read_loop(self, on_frame: Callable[[bytes], None]) -> None:
@@ -218,7 +225,7 @@ class UsbAdapter:
             return
         try:
             from ..protocol.ping import new_ping_packet
-            self.write(new_ping_packet())
+            self._write_frame(new_ping_packet(), log_errors=False)
             log.debug("唤醒敲门: 已主动发送 PING")
         except (usb.core.USBError, NotImplementedError, ValueError) as e:
             log.debug("主动 PING 发送失败: %s", e)
