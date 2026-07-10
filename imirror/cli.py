@@ -1,15 +1,17 @@
 """命令行入口。
 
 用法:
-  python -m imirror doctor              # 环境自检(跨平台, 不需要 iPhone)
-  python -m imirror devices [--json]    # 列出 iOS 设备及 QT 配置状态
-  python -m imirror activate            # 激活 QuickTime 配置
-  python -m imirror reset               # USB reset, 恢复半激活状态
-  python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
-  python -m imirror gui                 # 实时预览(Windows 默认 raw USB 有线)
-  python -m imirror windows-poc-check   # Windows 有线 POC 预检
-  python -m imirror windows-usbmuxd     # 启动 chotgpt 参考工具里的 usbmuxd
-  python -m imirror macos-record out.mov --duration 10   # macOS 原生录制
+  <py> -m imirror doctor              # 环境自检(跨平台, 不需要 iPhone)
+  <py> -m imirror devices [--json]    # 列出 iOS 设备及 QT 配置状态
+  <py> -m imirror activate            # 激活 QuickTime 配置
+  <py> -m imirror reset               # USB reset, 恢复半激活状态
+  <py> -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
+  <py> -m imirror gui                 # 实时预览(Windows 默认 raw USB 有线)
+  <py> -m imirror windows-poc-check   # Windows 有线 POC 预检
+  <py> -m imirror windows-usbmuxd     # 启动 chotgpt 参考工具里的 usbmuxd
+  <py> -m imirror macos-record out.mov --duration 10   # macOS 原生录制
+
+Windows 的 <py> 是 .venv\\Scripts\\python.exe；不要直接用系统 python。
 """
 from __future__ import annotations
 
@@ -23,6 +25,34 @@ import threading
 from . import __version__
 
 log = logging.getLogger("imirror")
+MIN_PYTHON = (3, 10)
+
+
+def _project_python() -> str:
+    return r".venv\Scripts\python.exe" if sys.platform == "win32" else ".venv/bin/python"
+
+
+def _print_runtime_error() -> None:
+    current = ".".join(str(x) for x in sys.version_info[:3])
+    required = ".".join(str(x) for x in MIN_PYTHON)
+    py = _project_python()
+    print(f"错误: iMirror 需要 Python {required}+，当前是 Python {current}。")
+    print(f"请在项目目录使用虚拟环境运行: {py} -m imirror <命令>")
+    if sys.platform == "win32":
+        print(r'首次准备环境: uv venv .venv && uv pip install --python .venv\Scripts\python.exe -e ".[dev,windows,gui]"')
+    else:
+        print('首次准备环境: uv venv .venv && uv pip install --python .venv/bin/python -e ".[dev,gui]"')
+
+
+def _print_missing_dependency(module_name: str) -> None:
+    py = _project_python()
+    package = {"usb": "pyusb"}.get(module_name, module_name)
+    print(f"错误: 当前 Python 环境缺少依赖 {package}。")
+    print(f"你很可能正在使用系统 Python；请改用: {py} -m imirror <命令>")
+    if sys.platform == "win32":
+        print(r'修复环境: uv pip install --python .venv\Scripts\python.exe -e ".[dev,windows,gui]"')
+    else:
+        print('修复环境: uv pip install --python .venv/bin/python -e ".[dev,gui]"')
 
 
 def _fmt_bytes(n: int) -> str:
@@ -91,7 +121,7 @@ def cmd_doctor(_args) -> int:
         print(f"✗ {denied} 个 Apple 设备节点全部无法访问")
         print({
             "Linux": "  修复: 加 udev 规则(见 docs/真机联调手册.md)或在命令前加 sudo",
-            "Windows": "  修复: 运行 python -m imirror windows-driver-installer, 使用内置 chotgpt 驱动安装器准备设备;\n"
+            "Windows": f"  修复: 运行 {_project_python()} -m imirror windows-driver-installer, 使用内置 chotgpt 驱动安装器准备设备;\n"
                        "        并确认 Apple Mobile Device Support 服务未占用(详见 docs/真机联调手册.md)",
             "Darwin": "  修复: 退出可能占用设备的程序(QuickTime、爱思助手等)后重试",
         }.get(os_name, ""))
@@ -113,7 +143,7 @@ def cmd_doctor(_args) -> int:
         return 1
     for d in ios:
         print(f"✓ {d.serial}  {d.product_name}  QT配置: {_qt_state_text(d)}")
-    print("\n环境就绪, 下一步: python -m imirror record out.h264 out.wav --duration 10")
+    print(f"\n环境就绪, 下一步: {_project_python()} -m imirror record out.h264 out.wav --duration 10")
     return 0
 
 
@@ -154,7 +184,7 @@ def _pick_device(udid: str | None, need_qt: bool = False):
             raise SystemExit(f"未找到序列号 {udid} 的设备。当前可见: {seen}")
         devices = matched
     if not devices:
-        raise SystemExit("未找到设备, 先跑: python -m imirror doctor")
+        raise SystemExit(f"未找到设备, 先跑: {_project_python()} -m imirror doctor")
     if not udid and len(devices) > 1:
         choices = "\n".join(
             f"  {d.serial}  {d.product_name}  QT配置: {_qt_state_text(d)}"
@@ -315,6 +345,10 @@ def cmd_macos_gui(args) -> int:
 
 
 def main(argv=None) -> int:
+    if sys.version_info < MIN_PYTHON:
+        _print_runtime_error()
+        return 1
+
     parser = argparse.ArgumentParser(
         prog="imirror",
         description="iMirror: iOS 投屏采集 (Windows 主攻 QuickTime raw USB 有线)",
@@ -395,6 +429,9 @@ def main(argv=None) -> int:
     }
     try:
         return handlers[args.command](args)
+    except ModuleNotFoundError as e:
+        _print_missing_dependency(e.name or "")
+        return 1
     except RuntimeError as e:
         print(f"错误: {e}")
         return 1

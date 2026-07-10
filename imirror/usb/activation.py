@@ -18,6 +18,10 @@ from .discovery import IosDevice, find_ios_devices, open_by_serial, _inspect
 
 log = logging.getLogger(__name__)
 
+
+def _project_python() -> str:
+    return r".venv\Scripts\python.exe" if sys.platform == "win32" else ".venv/bin/python"
+
 REQUEST_TYPE_VENDOR_OUT = 0x40
 REQUEST_QT_CONFIG = 0x52
 INDEX_ENABLE = 2
@@ -84,7 +88,7 @@ def enable_qt_config(device: IosDevice, retries: int = 30, force_rearm: bool = F
     hint = ""
     if sys.platform == "win32":
         hint = ("\nWindows 常见原因: 激活后设备以新形态重新枚举, Windows 给它派了默认驱动。"
-                "\n自救: 保持手机连接, 运行 python -m imirror windows-driver-installer,"
+                f"\n自救: 保持手机连接, 运行 {_project_python()} -m imirror windows-driver-installer,"
                 "\n      用内置 chotgpt 驱动安装器给新出现的 iPhone 条目准备驱动,"
                 "\n      然后跑 doctor 应显示 QT配置: 已激活。详见 docs/真机联调手册.md")
     raise RuntimeError(f"无法为 {device.serial} 激活 QuickTime 配置{hint}")

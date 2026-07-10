@@ -29,7 +29,7 @@ def test_doctor_reports_missing_tool_dir(monkeypatch, capsys):
 
 def test_poc_check_runs_bundled_tools(monkeypatch, capsys):
     calls = []
-    monkeypatch.setattr(windows_tools, "doctor", lambda: 0)
+    monkeypatch.setattr(windows_tools, "doctor", lambda **kwargs: 0)
     monkeypatch.setattr(windows_tools, "idevice_id", lambda args: calls.append(("id", args)) or 0)
     monkeypatch.setattr(windows_tools, "ideviceinfo", lambda args: calls.append(("info", args)) or 0)
 
@@ -43,7 +43,7 @@ def test_poc_check_runs_bundled_tools(monkeypatch, capsys):
 
 def test_poc_check_stops_when_tools_missing(monkeypatch):
     calls = []
-    monkeypatch.setattr(windows_tools, "doctor", lambda: 1)
+    monkeypatch.setattr(windows_tools, "doctor", lambda **kwargs: 1)
     monkeypatch.setattr(windows_tools, "idevice_id", lambda args: calls.append(("id", args)) or 0)
     monkeypatch.setattr(windows_tools, "ideviceinfo", lambda args: calls.append(("info", args)) or 0)
 

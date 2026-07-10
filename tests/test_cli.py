@@ -40,6 +40,28 @@ def test_main_prints_runtime_error_without_traceback(monkeypatch, capsys):
     assert capsys.readouterr().out == "错误: boom\n"
 
 
+def test_main_rejects_unsupported_python(monkeypatch, capsys):
+    monkeypatch.setattr(cli.sys, "version_info", (3, 8, 10))
+
+    rc = cli.main(["devices"])
+
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "需要 Python 3.10+" in out
+    assert ".venv" in out
+
+
+def test_main_prints_missing_dependency_hint(monkeypatch, capsys):
+    monkeypatch.setattr(cli, "cmd_devices", lambda args: (_ for _ in ()).throw(ModuleNotFoundError(name="usb")))
+
+    rc = cli.main(["devices"])
+
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "缺少依赖 pyusb" in out
+    assert ".venv" in out
+
+
 def test_gui_defaults_to_raw_usb_on_windows(monkeypatch):
     calls = []
     monkeypatch.setattr(cli.sys, "platform", "win32")

@@ -44,7 +44,7 @@ Windows 产品主线是 QuickTime raw USB 有线投屏，并优先复用内置 c
 
 - 项目于 2026-07-07 由 pyqvh 更名为 iMirror（包名 imirror），旧名已全部替换
 - 代码托管: https://gitee.com/xiaozai-van-liu/imirror
-- 协议层/CoreMedia 层完成并通过 fixture 测试（含真机数据端到端解析），当前测试总数 39
+- 协议层/CoreMedia 层完成并通过 fixture 测试（含真机数据端到端解析），当前测试总数 41
 - v0.2.0: fixture 入库开箱即跑、record --duration/实时统计、devices --json、--version
 - 2026-07-08 全量对照审计(4 个 sub-agent)后修复: close_session 时序对齐 Go
   (HPA0/HPD0 背靠背+结尾补发 HPD0, RELS 用计数信号量)、--duration 向上取整偏差;

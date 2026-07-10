@@ -26,6 +26,10 @@ TOOL_FILES = {
 }
 
 
+def project_python() -> str:
+    return r".venv\Scripts\python.exe" if sys.platform == "win32" else ".venv/bin/python"
+
+
 def candidate_tool_dirs() -> list[Path]:
     dirs: list[Path] = []
     env = os.environ.get("IMIRROR_QVH_TOOLS")
@@ -58,7 +62,7 @@ def tool_path(name: str) -> Path | None:
     return None
 
 
-def doctor() -> int:
+def doctor(*, next_command: str | None = None) -> int:
     if sys.platform != "win32":
         print("Windows reference tools only run on Windows.")
         return 1
@@ -76,7 +80,10 @@ def doctor() -> int:
         exists = (directory / rel).exists()
         print(f"{'[OK]' if exists else '[FAIL]'} {name}: {rel}")
         ok = ok and exists
-    print("Next: python -m imirror windows-poc-check")
+    if next_command is None:
+        next_command = f"{project_python()} -m imirror windows-poc-check"
+    if next_command:
+        print(f"Next: {next_command}")
     return 0 if ok else 1
 
 
@@ -95,6 +102,40 @@ def run_tool(name: str, args: list[str] | None = None) -> int:
         return 130
 
 
+def _shell_execute_runas(exe: Path, args: list[str] | None = None) -> int:
+    import ctypes
+
+    params = subprocess.list2cmdline(args or [])
+    return int(ctypes.windll.shell32.ShellExecuteW(
+        None,
+        "runas",
+        str(exe),
+        params,
+        str(exe.parent),
+        1,
+    ))
+
+
+def run_tool_elevated(name: str, args: list[str] | None = None) -> int:
+    if sys.platform != "win32":
+        print("Windows reference tools only run on Windows.")
+        return 1
+    exe = tool_path(name)
+    if exe is None:
+        doctor()
+        return 1
+    try:
+        result = _shell_execute_runas(exe, args)
+    except OSError as e:
+        print(f"Failed to request administrator privileges for {exe.name}: {e}")
+        return 1
+    if result <= 32:
+        print(f"Failed to start {exe.name} as administrator (ShellExecuteW={result}).")
+        return 1
+    print(f"Started {exe.name} as administrator. Complete the driver tool, then rerun windows-poc-check.")
+    return 0
+
+
 def start_usbmuxd(args: list[str] | None = None) -> int:
     print("Starting reference usbmuxd. It should listen on TCP 37015 and arm QuickTime mode.")
     print("Keep this process running while testing raw USB capture.")
@@ -110,12 +151,12 @@ def idevice_id(args: list[str] | None = None) -> int:
 
 
 def open_driver_installer() -> int:
-    return run_tool("driver_installer")
+    return run_tool_elevated("driver_installer")
 
 
 def poc_check(udid: str | None = None) -> int:
     """Run the wired Windows POC preflight using only bundled chotgpt tools."""
-    rc = doctor()
+    rc = doctor(next_command=None)
     if rc != 0:
         return rc
 
@@ -129,14 +170,16 @@ def poc_check(udid: str | None = None) -> int:
 
     if rc_id != 0 or rc_info != 0:
         print("\n[FAIL] chotgpt tools did not complete the device check.")
+        print("This is before iMirror protocol code: bundled idevice tools cannot see the phone yet.")
         print("Check: cable, unlocked/trusted phone, Apple Mobile Device service state, and bundled driver installer.")
-        print("Driver tool: python -m imirror windows-driver-installer")
+        print(f"Driver tool: {project_python()} -m imirror windows-driver-installer")
         return rc_info or rc_id
 
-    record = "python -m imirror -v record out.h264 out.wav --duration 10"
+    py = project_python()
+    record = f"{py} -m imirror -v record out.h264 out.wav --duration 10"
     if udid:
         record += f" --udid {udid}"
     print("\n[OK] Bundled chotgpt tools can see the device.")
-    print("Next terminal A: python -m imirror windows-usbmuxd")
+    print(f"Next terminal A: {py} -m imirror windows-usbmuxd")
     print(f"Next terminal B: {record}")
     return 0

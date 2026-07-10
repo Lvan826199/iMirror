@@ -100,6 +100,7 @@ macOS:   bash scripts/setup-macos.sh
 ```
 
 Windows 有线主线优先使用仓库内置 tools；驱动准备优先用 chotgpt 内置参考工具链，不要求用户自行下载驱动工具。
+Windows 下请始终用项目虚拟环境运行命令：`.venv\Scripts\python.exe -m imirror ...`，不要直接用系统 `python`。
 
 手动安装则使用 `uv` 创建开发环境：
 
@@ -132,21 +133,21 @@ uv pip install --python .venv/bin/python -e ".[gui]"
 
 先运行测试，确认协议层和 fixture 解析正常（不需要 iPhone，fixture 已随仓库提供）：
 
-```bash
-pytest
+```powershell
+.venv\Scripts\python.exe -m pytest tests -q
 ```
 
 环境自检（跨平台，逐项给出当前系统的修复建议）：
 
-```bash
-python -m imirror doctor
+```powershell
+.venv\Scripts\python.exe -m imirror doctor
 ```
 
 列出已连接的 iOS 设备：
 
-```bash
-python -m imirror devices
-python -m imirror devices --json    # JSON 输出, 便于脚本调用
+```powershell
+.venv\Scripts\python.exe -m imirror devices
+.venv\Scripts\python.exe -m imirror devices --json    # JSON 输出, 便于脚本调用
 ```
 
 `devices --json` 会同时输出 `active_config`、`usbmux_config`、`qt_config`、
@@ -155,21 +156,21 @@ QuickTime/Valeria 配置，`qt_enabled` 才表示当前活动配置已经切到 
 
 激活 QuickTime USB 配置：
 
-```bash
-python -m imirror activate
+```powershell
+.venv\Scripts\python.exe -m imirror activate
 ```
 
 USB reset 恢复设备普通枚举（macOS 半激活/残留 QT 描述符时很有用）：
 
-```bash
-python -m imirror reset
+```powershell
+.venv\Scripts\python.exe -m imirror reset
 ```
 
 录制屏幕和音频（自动激活 QT 配置，Ctrl+C 停止）：
 
-```bash
-python -m imirror record out.h264 out.wav
-python -m imirror record out.h264 out.wav --duration 30   # 限时 30 秒
+```powershell
+.venv\Scripts\python.exe -m imirror record out.h264 out.wav
+.venv\Scripts\python.exe -m imirror record out.h264 out.wav --duration 30   # 限时 30 秒
 ```
 
 录制过程中每 5 秒打印一次统计（视频帧数/fps/数据量、音频帧数）。
@@ -177,26 +178,26 @@ python -m imirror record out.h264 out.wav --duration 30   # 限时 30 秒
 
 播放录制出的视频流：
 
-```bash
+```powershell
 ffplay -f h264 out.h264
 ```
 
 启动实时预览：
 
-```bash
-python -m imirror gui
+```powershell
+.venv\Scripts\python.exe -m imirror gui
 ```
 
 Windows 有线主线内置了 `chotgpt/quicktime_video_hack_windows` 的 tools。先执行 POC 预检：
 
 ```powershell
-python -m imirror windows-poc-check
+.venv\Scripts\python.exe -m imirror windows-poc-check
 ```
 
 预检通过后，开一个终端保持参考 `usbmuxd.exe` 运行：
 
 ```powershell
-python -m imirror windows-usbmuxd
+.venv\Scripts\python.exe -m imirror windows-usbmuxd
 ```
 
 `windows-usbmuxd` 会启动参考项目修改过的 `usbmuxd.exe`，它监听 37015 并辅助设备进入
@@ -205,7 +206,7 @@ QuickTime 模式。保持它运行后，再另开终端跑 raw USB 录制/预览
 启动 raw USB 实时预览：
 
 ```powershell
-python -m imirror gui --udid 设备序列号
+.venv\Scripts\python.exe -m imirror gui --udid 设备序列号
 ```
 
 macOS 原生后端（实验性，不走 raw USB bulk；需要 Screen Recording 权限）：
