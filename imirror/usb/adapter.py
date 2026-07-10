@@ -40,6 +40,7 @@ class UsbAdapter:
         self._interface_number = -1
         self._stop = threading.Event()
         self._write_lock = threading.Lock()
+        self._saw_device_data = False
         # Windows 专属"唤醒敲门": C++ 参考(QuickTime.cpp:893-905)在读超时(-116)时
         # 发 vendor 控制请求 0x40/0x40/0x6400/0x6400 + 主动 PING, 作者注释明言
         # "不调用可能导致无限读取超时"。Linux/macOS(Go 版路线)不需要。
@@ -192,8 +193,10 @@ class UsbAdapter:
                 data = self._ep_in.read(READ_SIZE, timeout=READ_TIMEOUT_MS)
             except usb.core.USBTimeoutError:
                 timeouts += 1
-                if self._kick_enabled:
+                if self._kick_enabled and not self._saw_device_data:
                     self._kick_device(timeouts)
+                elif self._kick_enabled and timeouts == 1:
+                    log.debug("已收到过设备数据, 后续读超时不再发送唤醒敲门, 避免打断会话")
                 # 每 3 次超时(约 6s)提示一次, 便于判断是"读不到数据"还是"读错"
                 if timeouts % 3 == 0:
                     log.debug("读超时 %d 次(约 %ds 无数据), 仍在等待设备...",
@@ -205,6 +208,7 @@ class UsbAdapter:
                 log.error("USB 读错误: %s", e)
                 break
             timeouts = 0
+            self._saw_device_data = True
             log.debug("读到 %d 字节", len(data))
             for frame in extractor.feed(bytes(data)):
                 on_frame(frame)
