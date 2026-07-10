@@ -1,7 +1,7 @@
 import pytest
 
 from imirror import cli
-from imirror.usb.discovery import IosDevice
+from imirror.usb.discovery import AppleUsbNode, IosDevice
 
 
 def _device(serial: str, product: str = "iPhone") -> IosDevice:
@@ -29,6 +29,19 @@ def test_pick_device_requires_udid_when_multiple_devices(monkeypatch):
     assert "发现多台 iOS 设备" in message
     assert "serial-a" in message
     assert "serial-b" in message
+
+
+def test_pick_device_reports_inaccessible_apple_nodes(monkeypatch):
+    monkeypatch.setattr("imirror.usb.discovery.find_ios_devices", lambda: [])
+    monkeypatch.setattr("imirror.usb.discovery.list_apple_usb_nodes", lambda: [AppleUsbNode(0x05AC, 0x12A8)])
+
+    with pytest.raises(SystemExit) as exc:
+        cli._pick_device("00008110-000275943EEB801E", need_qt=False)
+
+    message = str(exc.value)
+    assert "05ac:12a8" in message
+    assert "无法读取 iOS 序列号" in message
+    assert "windows-driver-installer" in message
 
 
 def test_main_prints_runtime_error_without_traceback(monkeypatch, capsys):

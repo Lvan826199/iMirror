@@ -71,6 +71,24 @@ def _qt_state_text(device) -> str:
     return "未激活 (record 时会自动激活)"
 
 
+def _raw_apple_nodes_hint() -> str | None:
+    from .usb.discovery import list_apple_usb_nodes
+
+    try:
+        nodes = list_apple_usb_nodes()
+    except Exception:
+        return None
+    if not nodes:
+        return None
+    ids = ", ".join(sorted({node.usb_id for node in nodes}))
+    return (
+        f"发现 {len(nodes)} 个 Apple USB 节点({ids}), 但无法读取 iOS 序列号/描述符。\n"
+        "Windows 上这通常表示当前设备形态还没被内置 chotgpt 驱动安装器处理。\n"
+        f"请保持手机连接、解锁并信任电脑, 然后运行: {_project_python()} -m imirror windows-driver-installer\n"
+        f"完成后再跑: {_project_python()} -m imirror windows-poc-check"
+    )
+
+
 def cmd_doctor(_args) -> int:
     """环境自检: 逐项检查并给出当前平台的修复建议, 没接 iPhone 也能跑。"""
     import platform
@@ -164,7 +182,11 @@ def cmd_devices(args) -> int:
         } for d in devices], ensure_ascii=False, indent=2))
         return 0 if devices else 1
     if not devices:
-        print("未发现 iOS 设备。检查: 1) 数据线 2) 手机已解锁并信任 3) Windows 先跑内置 windows-usbmuxd / windows-driver-installer")
+        hint = _raw_apple_nodes_hint()
+        if hint:
+            print(hint)
+        else:
+            print("未发现 iOS 设备。检查: 1) 数据线 2) 手机已解锁并信任 3) Windows 先跑内置 windows-usbmuxd / windows-driver-installer")
         return 1
     for d in devices:
         print(f"{d.serial}  {d.product_name}  vid:pid={d.vid:04x}:{d.pid:04x}  QT配置: {_qt_state_text(d)}")
@@ -181,9 +203,15 @@ def _pick_device(udid: str | None, need_qt: bool = False):
         matched = [d for d in devices if d.serial.replace("-", "").lower() == want]
         if not matched:
             seen = ", ".join(d.serial for d in devices) or "无"
+            hint = _raw_apple_nodes_hint()
+            if hint and not devices:
+                raise SystemExit(f"未找到序列号 {udid} 的设备。当前可见: {seen}\n{hint}")
             raise SystemExit(f"未找到序列号 {udid} 的设备。当前可见: {seen}")
         devices = matched
     if not devices:
+        hint = _raw_apple_nodes_hint()
+        if hint:
+            raise SystemExit(f"未找到可用 iOS 设备。\n{hint}")
         raise SystemExit(f"未找到设备, 先跑: {_project_python()} -m imirror doctor")
     if not udid and len(devices) > 1:
         choices = "\n".join(

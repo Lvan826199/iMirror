@@ -53,6 +53,27 @@ class IosDevice:
         return self.qt_available and self.active_config_index == self.qt_config_index
 
 
+@dataclass
+class AppleUsbNode:
+    vid: int
+    pid: int
+
+    @property
+    def usb_id(self) -> str:
+        return f"{self.vid:04x}:{self.pid:04x}"
+
+
+def list_apple_usb_nodes() -> list[AppleUsbNode]:
+    """List raw Apple USB nodes even when descriptors/serials are not readable."""
+    nodes: list[AppleUsbNode] = []
+    for dev in usb_find(find_all=True, idVendor=APPLE_VID):
+        try:
+            nodes.append(AppleUsbNode(dev.idVendor, dev.idProduct))
+        finally:
+            usb.util.dispose_resources(dev)
+    return nodes
+
+
 def find_ios_devices() -> list[IosDevice]:
     devices = []
     for dev in usb_find(find_all=True, idVendor=APPLE_VID):

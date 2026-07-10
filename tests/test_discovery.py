@@ -1,3 +1,4 @@
+from imirror.usb import discovery
 from imirror.usb.discovery import IosDevice
 
 
@@ -25,3 +26,18 @@ def test_qt_enabled_requires_active_qt_config():
 
     assert device.qt_available
     assert device.qt_enabled
+
+
+class _RawDev:
+    idVendor = 0x05AC
+    idProduct = 0x12A8
+
+
+def test_list_apple_usb_nodes_reports_ids(monkeypatch):
+    monkeypatch.setattr(discovery, "usb_find", lambda **kwargs: [_RawDev()])
+    monkeypatch.setattr(discovery.usb.util, "dispose_resources", lambda dev: None)
+
+    nodes = discovery.list_apple_usb_nodes()
+
+    assert len(nodes) == 1
+    assert nodes[0].usb_id == "05ac:12a8"

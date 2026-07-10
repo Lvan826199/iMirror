@@ -25,7 +25,7 @@ git pull
 
 验收：
 
-- 测试通过，当前预期 `41 passed`；
+- 测试通过，当前预期 `43 passed`；
 - `windows-poc-check` 找到 `tools/usbmuxd.exe`、`ideviceinfo.exe`、驱动安装器，并能跑 chotgpt 设备预检；
 - 不要求用户自行下载驱动工具、usbmuxd、ideviceinfo 或 DLL。
 
