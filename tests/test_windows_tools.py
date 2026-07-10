@@ -10,12 +10,11 @@ def test_find_tool_dir_requires_all_reference_tools(monkeypatch):
     assert str(windows_tools.find_tool_dir()) == base
 
 
-def test_tool_path_falls_back_to_path(monkeypatch):
+def test_tool_path_does_not_fall_back_to_path(monkeypatch):
     monkeypatch.delenv("IMIRROR_QVH_TOOLS", raising=False)
     monkeypatch.setattr(windows_tools, "find_tool_dir", lambda: None)
-    monkeypatch.setattr(windows_tools.shutil, "which", lambda name: "C:/bin/" + name)
 
-    assert windows_tools.tool_path("usbmuxd").name == "usbmuxd.exe"
+    assert windows_tools.tool_path("usbmuxd") is None
 
 
 def test_doctor_reports_missing_tool_dir(monkeypatch, capsys):

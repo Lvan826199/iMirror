@@ -27,7 +27,7 @@ git pull
 
 - 测试通过，当前预期 `37 passed`；
 - `windows-tools-doctor` 找到 `tools/usbmuxd.exe`、`ideviceinfo.exe`、驱动安装器；
-- 不要求用户自行下载 Zadig、usbmuxd、ideviceinfo 或 DLL。
+- 不要求用户自行下载驱动工具、usbmuxd、ideviceinfo 或 DLL。
 
 ## W1：复现 chotgpt raw USB 工具链
 
@@ -116,7 +116,7 @@ git pull
 任务：
 
 - `setup-windows.bat` 默认检查内置 chotgpt tools；
-- 驱动准备优先调用内置工具，Zadig 仅作为排障备选；
+- 驱动准备优先调用 chotgpt 内置工具，第三方驱动工具仅作为开发者排障兜底；
 - raw USB 成功后接 `gui --backend raw-usb` 预览；
 - 若 chotgpt exe/DLL 路线更快，先作为 MSCA Windows POC 视频源；
 - 写内部使用手册：普通用户只看到“信任设备 → 跑脚本 → 启动程序”。

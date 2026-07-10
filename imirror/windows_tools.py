@@ -1,15 +1,15 @@
 """Helpers for the Windows reference tools from quicktime_video_hack_windows.
 
 The chotgpt project ships practical Windows tools: a modified usbmuxd,
-ideviceinfo/idevice_id, iproxy and a driver installer.  We do not vendor those
-binary files in this repository; instead users can download them locally and
-point iMirror at the extracted tool directory.
+ideviceinfo/idevice_id, iproxy and a driver installer.  This internal build
+vendors those binaries under tools/ and uses them as the Windows QuickTime
+toolchain.  IMIRROR_QVH_TOOLS is only a development override for an extracted
+upstream tool directory.
 """
 from __future__ import annotations
 
 from pathlib import Path
 import os
-import shutil
 import subprocess
 import sys
 
@@ -55,9 +55,6 @@ def tool_path(name: str) -> Path | None:
         candidate = directory / rel
         if candidate.exists():
             return candidate
-    found = shutil.which(Path(rel).name)
-    if found:
-        return Path(found)
     return None
 
 
@@ -71,7 +68,7 @@ def doctor() -> int:
     if directory is None:
         print("[FAIL] tool directory not found")
         print("  Run: powershell -ExecutionPolicy Bypass -File scripts\\fetch-qvh-windows-tools.ps1")
-        print("  Or set IMIRROR_QVH_TOOLS to the extracted tool directory.")
+        print("  Or set IMIRROR_QVH_TOOLS to the extracted quicktime_video_hack_windows tool directory.")
         return 1
     print(f"[OK] tool directory: {directory}")
     ok = True

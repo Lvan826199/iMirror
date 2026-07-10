@@ -72,7 +72,7 @@ def cmd_doctor(_args) -> int:
         print("✗ 未发现 Apple USB 设备 (vid=05ac)")
         print("  检查: 数据线要支持数据传输 / 手机解锁并点了\"信任\" / 换个 USB 口")
         if os_name == "Windows":
-            print("  Windows 还需: 用 Zadig 把 iPhone 驱动换成 libusb-win32")
+            print("  Windows 还需: 先运行 windows-usbmuxd；如驱动未就绪, 用 windows-driver-installer")
         return 1
     print(f"✓ 发现 {len(apple_devs)} 个 Apple USB 设备")
 
@@ -90,8 +90,8 @@ def cmd_doctor(_args) -> int:
         print(f"✗ {denied} 个 Apple 设备节点全部无法访问")
         print({
             "Linux": "  修复: 加 udev 规则(见 docs/真机联调手册.md)或在命令前加 sudo",
-            "Windows": "  修复: 用 Zadig 给复合父设备(USB ID 05AC 12A8)换 libusb-win32 驱动,\n"
-                       "        并停用 Apple Mobile Device Support 服务(详见 docs/真机联调手册.md)",
+            "Windows": "  修复: 运行 python -m imirror windows-driver-installer, 使用内置 chotgpt 驱动安装器准备设备;\n"
+                       "        并确认 Apple Mobile Device Support 服务未占用(详见 docs/真机联调手册.md)",
             "Darwin": "  修复: 退出可能占用设备的程序(QuickTime、爱思助手等)后重试",
         }.get(os_name, ""))
         return 1
@@ -105,8 +105,8 @@ def cmd_doctor(_args) -> int:
     if not ios:
         print("✗ 没有识别出 iOS 设备")
         if os_name == "Windows":
-            print("  检查: Zadig 里换驱动的对象必须是 Composite Parent(USB ID 05AC 12A8),")
-            print("        换完后设备管理器应出现 libusb-win32 devices 分类")
+            print("  检查: 先跑 windows-tools-doctor / windows-usbmuxd;")
+            print("        如驱动未就绪, 跑 windows-driver-installer 并选择当前 iPhone 条目")
         else:
             print("  发现的可能是键盘/耳机等 Apple 外设")
         return 1
@@ -133,7 +133,7 @@ def cmd_devices(args) -> int:
         } for d in devices], ensure_ascii=False, indent=2))
         return 0 if devices else 1
     if not devices:
-        print("未发现 iOS 设备。检查: 1) 数据线 2) 手机已解锁并信任 3) libusb 驱动(Windows 需用 Zadig 替换)")
+        print("未发现 iOS 设备。检查: 1) 数据线 2) 手机已解锁并信任 3) Windows 先跑内置 windows-usbmuxd / windows-driver-installer")
         return 1
     for d in devices:
         print(f"{d.serial}  {d.product_name}  vid:pid={d.vid:04x}:{d.pid:04x}  QT配置: {_qt_state_text(d)}")

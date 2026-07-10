@@ -80,7 +80,7 @@ class UsbAdapter:
         except (usb.core.USBError, NotImplementedError, ValueError) as e:
             raise RuntimeError(
                 f"无法读取活动 USB 配置: {e}。Windows 上多为驱动未就绪, "
-                f"请对当前形态的 iPhone 用 Zadig 换 libusb-win32(详见 docs/真机联调手册.md)"
+                f"请运行 python -m imirror windows-driver-installer 使用内置 chotgpt 驱动安装器处理当前形态的 iPhone"
             ) from e
         if cfg.bConfigurationValue != target:
             log.warning("活动配置仍是 #%d(目标 #%d), 尝试直接在当前配置里找 QT 接口",
@@ -97,8 +97,8 @@ class UsbAdapter:
                    f"(它在配置 #{target})。")
             if sys.platform == "win32":
                 msg += ("\nWindows 根因: 投屏接口在非默认 USB 配置上, 而 libusbK/WinUSB "
-                        "驱动不支持切换配置。\n解决: 用 Zadig 把该设备的驱动从 libusbK "
-                        "改成 libusb-win32(libusb0), 它支持切配置。\n详见 docs/真机联调手册.md 的驱动选择表。")
+                        "驱动不支持切换配置。\n解决: 运行 python -m imirror windows-driver-installer, "
+                        "优先使用内置 chotgpt 驱动安装器重新准备该设备。\n详见 docs/真机联调手册.md。")
             raise RuntimeError(msg)
         self._interface_number = intf.bInterfaceNumber
         for attempt in range(1, 6):

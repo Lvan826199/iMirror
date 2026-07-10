@@ -99,7 +99,7 @@ Windows: 双击 scripts\setup-windows.bat
 macOS:   bash scripts/setup-macos.sh
 ```
 
-Windows 有线主线优先使用仓库内置 tools；驱动准备优先用内置参考工具链，Zadig 只作为排障备选。
+Windows 有线主线优先使用仓库内置 tools；驱动准备优先用 chotgpt 内置参考工具链，不要求用户自行下载驱动工具。
 
 手动安装则使用 `uv` 创建开发环境：
 
