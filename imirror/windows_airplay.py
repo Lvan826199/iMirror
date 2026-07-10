@@ -19,6 +19,7 @@ from dataclasses import dataclass
 UXPLAY_NAMES = ("uxplay-windows.exe", "uxplay.exe", "uxplay")
 UXPLAY_HINT = "https://github.com/leapbtw/uxplay-windows/releases"
 UXPLAY_UPSTREAM = "https://github.com/FDH2/UxPlay"
+DEFAULT_RECEIVER_ARGS = ["-p"]
 
 
 @dataclass(frozen=True)
@@ -96,7 +97,7 @@ def _write_uxplay_windows_args(executable: str, name: str, extra_args: list[str]
     path = _uxplay_windows_config_path()
     if path is None:
         return
-    args = ["-n", name, "-nh", *(extra_args or [])]
+    args = ["-n", name, "-nh", *DEFAULT_RECEIVER_ARGS, *(extra_args or [])]
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(" ".join(args), encoding="utf-8")
@@ -149,7 +150,7 @@ def run_receiver(name: str = "iMirror", extra_args: list[str] | None = None) -> 
         doctor()
         return 1
     _write_uxplay_windows_args(info.executable, name, extra_args)
-    args = [info.executable, "-n", name]
+    args = [info.executable, "-n", name, *DEFAULT_RECEIVER_ARGS]
     if extra_args:
         args.extend(extra_args)
     print("正在启动 Windows AirPlay 接收端...")

@@ -50,4 +50,4 @@ def test_uxplay_windows_writes_arguments_file(monkeypatch):
         ["-fps", "30"],
     )
 
-    assert writes == [("mkdir", True, True), ("write", "-n iMirror -nh -fps 30", "utf-8")]
+    assert writes == [("mkdir", True, True), ("write", "-n iMirror -nh -p -fps 30", "utf-8")]
