@@ -153,6 +153,15 @@ def _pick_device(udid: str | None, need_qt: bool = False):
         devices = matched
     if not devices:
         raise SystemExit("未找到设备, 先跑: python -m imirror doctor")
+    if not udid and len(devices) > 1:
+        choices = "\n".join(
+            f"  {d.serial}  {d.product_name}  QT配置: {_qt_state_text(d)}"
+            for d in devices
+        )
+        raise SystemExit(
+            "发现多台 iOS 设备, 为避免选错设备, 请用 --udid 明确指定其中一台:\n"
+            f"{choices}"
+        )
     device = devices[0]
     if need_qt and not device.qt_enabled:
         log.info("QT 配置未激活, 正在激活 %s ...", device.serial)
@@ -331,7 +340,11 @@ def main(argv=None) -> int:
         "macos-record": cmd_macos_record,
         "macos-gui": cmd_macos_gui,
     }
-    return handlers[args.command](args)
+    try:
+        return handlers[args.command](args)
+    except RuntimeError as e:
+        print(f"错误: {e}")
+        return 1
 
 
 if __name__ == "__main__":

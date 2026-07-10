@@ -214,6 +214,8 @@ imirror record out.h264 out.wav
 | `imirror --version` | 显示版本号 |
 
 可以添加 `-v` 或 `--verbose` 输出更详细日志（观察协议握手细节）。
+如果同时识别到多台 iOS 设备，`record` / `gui` / `activate` 会要求显式传入
+`--udid SERIAL`，避免默认选错设备。
 
 ## Troubleshooting
 
