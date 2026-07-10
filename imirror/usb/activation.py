@@ -34,11 +34,23 @@ def enable_qt_config(device: IosDevice, retries: int = 30, force_rearm: bool = F
         if device.qt_enabled and force_rearm:
             log.debug("%s 已在 QT 配置 #%d, 强制重发激活请求以重新武装会话",
                       device.serial, device.qt_config_index)
-            try:
-                dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_ENABLE, b"")
-            except (usb.core.USBError, NotImplementedError, ValueError) as e:
-                # 设备收到请求后可能立即断开, 这里报 pipe error/no device 是正常现象
-                log.debug("重新激活请求后设备断开(正常): %s", e)
+            _request_qt_enable(dev, log_disconnect=True)
+        elif device.qt_available and sys.platform == "win32":
+            # Windows 上直接 set_configuration 能把 active config 切到 QT, 但不总能重新
+            # 武装 QuickTime/Valeria 会话。优先走 Apple vendor enable, 让设备按原始
+            # 激活路径重枚举并从会话起点重新发 PING。
+            log.debug(
+                "%s 已暴露 QT 配置 #%d, 当前活动配置是 #%d; Windows 优先重发 QT 激活请求",
+                device.serial, device.qt_config_index, device.active_config_index,
+            )
+            if not _request_qt_enable(dev, log_disconnect=False):
+                e = _request_qt_enable.last_error
+                log.warning("QT 激活控制请求失败: %s — 回退到 set_configuration(%d)",
+                            e, device.qt_config_index)
+                try:
+                    dev.set_configuration(device.qt_config_index)
+                except (usb.core.USBError, NotImplementedError, ValueError) as e2:
+                    log.debug("set_configuration 回退也失败: %s", e2)
         elif device.qt_available:
             log.debug(
                 "%s 已暴露 QT 配置 #%d, 但当前活动配置是 #%d, 尝试直接切换配置",
@@ -49,17 +61,9 @@ def enable_qt_config(device: IosDevice, retries: int = 30, force_rearm: bool = F
             except (usb.core.USBError, NotImplementedError, ValueError) as e:
                 log.warning("set_configuration(%d) 失败: %s — 改发 QT 激活控制请求",
                             device.qt_config_index, e)
-                try:
-                    dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_ENABLE, b"")
-                except (usb.core.USBError, NotImplementedError, ValueError) as e2:
-                    # 设备收到请求后立即断开, 这里报 pipe error/no device 是正常现象
-                    log.debug("激活请求后设备断开(正常): %s", e2)
+                _request_qt_enable(dev, log_disconnect=True)
         else:
-            try:
-                dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_ENABLE, b"")
-            except (usb.core.USBError, NotImplementedError, ValueError) as e:
-                # 设备收到请求后立即断开, 这里报 pipe error/no device 是正常现象
-                log.debug("激活请求后设备断开(正常): %s", e)
+            _request_qt_enable(dev, log_disconnect=True)
     finally:
         usb.util.dispose_resources(dev)
 
@@ -84,6 +88,22 @@ def enable_qt_config(device: IosDevice, retries: int = 30, force_rearm: bool = F
                 "\n      or Composite Parents), 给新出现的 iPhone 条目再换一次 libusb-win32,"
                 "\n      然后跑 doctor 应显示 QT配置: 已激活。详见 docs/真机联调手册.md")
     raise RuntimeError(f"无法为 {device.serial} 激活 QuickTime 配置{hint}")
+
+
+def _request_qt_enable(dev, *, log_disconnect: bool) -> bool:
+    _request_qt_enable.last_error = None
+    try:
+        dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_ENABLE, b"")
+        return True
+    except (usb.core.USBError, NotImplementedError, ValueError) as e:
+        _request_qt_enable.last_error = e
+        if log_disconnect:
+            # 设备收到请求后可能立即断开, 这里报 pipe error/no device 是正常现象
+            log.debug("激活请求后设备断开(正常): %s", e)
+        return False
+
+
+_request_qt_enable.last_error = None
 
 
 def disable_qt_config(device: IosDevice) -> None:

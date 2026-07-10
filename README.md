@@ -306,7 +306,8 @@ imirror/
 - **Windows 完整支持**：当前已按 C++ 参考补上读超时时的 vendor `0x40/0x40/0x6400/0x6400`
   “唤醒敲门”与主动 PING 兜底，bulk OUT 写入已加显式超时，避免 Windows 端点不通时
   卡死；真机日志显示收到首个设备 PING 后不应继续敲门，当前仅在尚未收到任何设备数据前
-  触发唤醒；Windows active QT 半激活残留态会在 record/gui 前强制重发 QT enable 重新武装。
+  触发唤醒；Windows active QT 半激活残留态会在 record/gui 前强制重发 QT enable 重新武装；
+  若 QT 描述符已暴露但当前仍是普通配置，也会优先走 Apple vendor enable，再回退直接切配置。
   仍需更多真机验证 libusb-win32 在不同设备/驱动实例下的 bulk 稳定性。
   换机验证步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)
   第 4.1 节；根因详见
