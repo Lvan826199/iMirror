@@ -157,6 +157,11 @@ def _pick_device(udid: str | None, need_qt: bool = False):
     if need_qt and not device.qt_enabled:
         log.info("QT 配置未激活, 正在激活 %s ...", device.serial)
         device = enable_qt_config(device)
+    elif need_qt and sys.platform == "win32":
+        # Windows 失败会话可能把设备留在 active QT 配置, 但下一次直接复用不会重新出流。
+        # 强制重发 QT enable, 让设备重新进入 PING/SYNC 会话起点。
+        log.info("Windows: QT 配置已激活, 重新发送激活请求以启动新会话 %s ...", device.serial)
+        device = enable_qt_config(device, force_rearm=True)
     return device
 
 

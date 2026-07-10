@@ -24,14 +24,22 @@ INDEX_ENABLE = 2
 INDEX_DISABLE = 0
 
 
-def enable_qt_config(device: IosDevice, retries: int = 30) -> IosDevice:
+def enable_qt_config(device: IosDevice, retries: int = 30, force_rearm: bool = False) -> IosDevice:
     """激活 QuickTime 配置, 返回重新枚举后的设备信息。"""
     dev = open_by_serial(device.serial)
     try:
-        if device.qt_enabled:
+        if device.qt_enabled and not force_rearm:
             log.debug("%s 的 QT 配置已是活动配置 #%d, 跳过", device.serial, device.qt_config_index)
             return device
-        if device.qt_available:
+        if device.qt_enabled and force_rearm:
+            log.debug("%s 已在 QT 配置 #%d, 强制重发激活请求以重新武装会话",
+                      device.serial, device.qt_config_index)
+            try:
+                dev.ctrl_transfer(REQUEST_TYPE_VENDOR_OUT, REQUEST_QT_CONFIG, 0, INDEX_ENABLE, b"")
+            except (usb.core.USBError, NotImplementedError, ValueError) as e:
+                # 设备收到请求后可能立即断开, 这里报 pipe error/no device 是正常现象
+                log.debug("重新激活请求后设备断开(正常): %s", e)
+        elif device.qt_available:
             log.debug(
                 "%s 已暴露 QT 配置 #%d, 但当前活动配置是 #%d, 尝试直接切换配置",
                 device.serial, device.qt_config_index, device.active_config_index,
