@@ -1,2 +1,2 @@
-"""iMirror: iOS 有线投屏采集 (QuickTime 协议 Python 实现)"""
+"""iMirror: iOS 投屏采集实验项目 (AirPlay + QuickTime raw USB)."""
 __version__ = "0.2.0"

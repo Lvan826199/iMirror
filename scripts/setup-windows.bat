@@ -54,32 +54,29 @@ if errorlevel 1 (
 
 echo.
 echo ============================================
-echo  软件环境就绪! 运行环境自检:
+echo  软件环境就绪! 运行 Windows AirPlay 检查:
 echo ============================================
-.venv\Scripts\python.exe -m imirror doctor
-if errorlevel 1 goto :driver_help
+.venv\Scripts\python.exe -m imirror windows-doctor
+if errorlevel 1 goto :airplay_help
 
 echo.
 echo --------------------------------------------
-echo 全部就绪! 直接开始录制, 多台设备时加 --udid 序列号 指定:
-echo   .venv\Scripts\python.exe -m imirror -v record out.h264 out.wav --duration 10
+echo 全部就绪! 启动投屏接收端:
+echo   .venv\Scripts\python.exe -m imirror windows-airplay
+echo 手机操作: 控制中心, 屏幕镜像, 选择 iMirror
 goto :end
 
-:driver_help
+:airplay_help
 echo.
 echo --------------------------------------------
-echo 自检未通过。若上方提示与驱动/权限有关, 按下列步骤换驱动, 一次性:
-echo   1. Win+R 输入 services.msc 回车, 找到 Apple Mobile Device Service,
-echo      右键停止, 并把启动类型设为"禁用", 没有该服务则跳过
-echo   2. 右键以管理员身份运行本目录自带的 scripts\zadig-2.9.exe
-echo   3. Options 菜单: 勾选 List All Devices,
-echo      并且取消勾选 Ignore Hubs or Composite Parents, 这步是关键
-echo   4. 下拉框按 USB ID 列选 05AC 12A8 的条目, 名字可能只显示 Apple,
-echo      有多个就选标 Composite Parent 的, 驱动选 libusb-win32, Replace Driver
-echo      注意: 必须选 libusb-win32, 不是 libusbK; 投屏接口在非默认配置,
-echo            只有 libusb-win32 支持切配置。名字带 win32 但 64 位系统照样用
-echo   5. 校验: 换好后跑 doctor 能识别设备且 record 不报 set_configuration 错
-echo 完成后重新运行本脚本或单独跑 doctor 复查
+echo AirPlay 检查未完全通过。Windows 默认路线不需要 Zadig 换驱动。
+echo 如果提示缺 UxPlay:
+echo   1. 打开 https://github.com/leapbtw/uxplay-windows/releases
+echo   2. 下载 Windows 版 UxPlay
+echo   3. 把 uxplay.exe 放到 tools\uxplay\uxplay.exe
+echo   4. 重新运行: .venv\Scripts\python.exe -m imirror windows-doctor
+echo 如果手机看不到 iMirror, 检查 Windows 防火墙, Bonjour, 手机和电脑同一局域网
+echo raw USB 是高级实验模式, 才需要按 docs\真机联调手册.md 使用 Zadig
 goto :end
 
 :fail

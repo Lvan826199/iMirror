@@ -6,7 +6,8 @@
   python -m imirror activate            # 激活 QuickTime 配置
   python -m imirror reset               # USB reset, 恢复半激活状态
   python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
-  python -m imirror gui                 # 实时预览(需要 PyAV + OpenCV)
+  python -m imirror gui                 # 实时预览(Windows 默认 AirPlay)
+  python -m imirror windows-airplay     # Windows AirPlay 接收端
   python -m imirror macos-record out.mov --duration 10   # macOS 原生录制
 """
 from __future__ import annotations
@@ -253,6 +254,15 @@ def cmd_record(args) -> int:
 
 
 def cmd_gui(args) -> int:
+    backend = getattr(args, "backend", "auto")
+    if backend == "auto" and sys.platform == "win32":
+        backend = "airplay"
+    if backend == "airplay":
+        from .windows_airplay import run_receiver
+        return run_receiver(name=getattr(args, "name", "iMirror"))
+    if backend != "raw-usb":
+        print(f"不支持的 GUI backend: {backend}")
+        return 1
     try:
         # av/cv2 在 viewer 函数体内才 import, 所以要把调用也包进来
         from .gui.viewer import run_viewer
@@ -264,6 +274,16 @@ def cmd_gui(args) -> int:
         else:
             print('  uv pip install --python .venv/bin/python -e ".[gui]"')
         return 1
+
+
+def cmd_windows_doctor(_args) -> int:
+    from .windows_airplay import doctor
+    return doctor()
+
+
+def cmd_windows_airplay(args) -> int:
+    from .windows_airplay import run_receiver
+    return run_receiver(name=args.name, extra_args=args.uxplay_arg or None)
 
 
 def cmd_macos_devices(args) -> int:
@@ -284,8 +304,8 @@ def cmd_macos_gui(args) -> int:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="imirror",
-        description="iMirror: iOS 有线投屏采集 (Python 版 quicktime_video_hack)",
-        epilog="示例: imirror record out.h264 out.wav --duration 30",
+        description="iMirror: iOS 投屏采集 (Windows 默认 AirPlay, raw USB 保留为高级模式)",
+        epilog="示例: imirror gui 或 imirror windows-airplay",
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="输出 DEBUG 日志")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -311,6 +331,15 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("gui", help="实时预览窗口")
     p.add_argument("--udid", help="设备序列号")
+    p.add_argument("--backend", choices=("auto", "airplay", "raw-usb"), default="auto",
+                   help="预览后端: Windows 默认 airplay, 其它平台默认 raw-usb")
+    p.add_argument("--name", default="iMirror", help="AirPlay 接收端名称(Windows airplay 后端)")
+
+    sub.add_parser("windows-doctor", help="Windows AirPlay 后端检查")
+
+    p = sub.add_parser("windows-airplay", help="Windows AirPlay 接收端(推荐 Windows 主线)")
+    p.add_argument("--name", default="iMirror", help="手机屏幕镜像列表中显示的名称")
+    p.add_argument("--uxplay-arg", action="append", help="透传给 UxPlay 的高级参数, 可重复")
 
     p = sub.add_parser("macos-devices", help="macOS 原生后端: 列出 iOS 屏幕源")
     p.add_argument("--json", action="store_true", help="以 JSON 输出")
@@ -336,6 +365,8 @@ def main(argv=None) -> int:
         "reset": cmd_reset,
         "record": cmd_record,
         "gui": cmd_gui,
+        "windows-doctor": cmd_windows_doctor,
+        "windows-airplay": cmd_windows_airplay,
         "macos-devices": cmd_macos_devices,
         "macos-record": cmd_macos_record,
         "macos-gui": cmd_macos_gui,

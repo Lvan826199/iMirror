@@ -38,3 +38,21 @@ def test_main_prints_runtime_error_without_traceback(monkeypatch, capsys):
 
     assert rc == 1
     assert capsys.readouterr().out == "错误: boom\n"
+
+
+def test_gui_defaults_to_airplay_on_windows(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr("imirror.windows_airplay.run_receiver", lambda name: calls.append(name) or 0)
+
+    assert cli.main(["gui", "--name", "Desk"]) == 0
+    assert calls == ["Desk"]
+
+
+def test_gui_raw_usb_still_available(monkeypatch):
+    calls = []
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr("imirror.gui.viewer.run_viewer", lambda udid: calls.append(udid) or 0)
+
+    assert cli.main(["gui", "--backend", "raw-usb", "--udid", "serial"]) == 0
+    assert calls == ["serial"]

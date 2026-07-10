@@ -4,14 +4,14 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](#license)
 [![Status](https://img.shields.io/badge/status-experimental-orange)](#project-status)
 
-iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流的 Python 实现。它移植自
+iMirror 是一个 iPhone/iPad 投屏采集实验项目。raw USB backend 移植自
 [danielpaulus/quicktime_video_hack](https://github.com/danielpaulus/quicktime_video_hack)
 的 Go 版协议实现，并参考
 [chotgpt/quicktime_video_hack_windows](https://github.com/chotgpt/quicktime_video_hack_windows)
-的 Windows 适配经验。
+的 Windows 适配经验；Windows 产品主线已切到 AirPlay backend。
 
-当前目标是提供一个可测试、可维护的 QuickTime 有线投屏采集库和命令行工具，用于录制 H.264
-视频流和 LPCM 音频流。
+当前目标是提供一个可测试、可维护的跨平台投屏采集库和命令行工具：Windows 默认 AirPlay，
+macOS 优先原生 CoreMediaIO/AVFoundation，raw USB QuickTime 保留为协议实验和 Linux 路线。
 
 ## 文档导航
 
@@ -19,6 +19,7 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 | --- | --- |
 | 安装并使用（列设备/录制/预览） | 本 README 的 Installation + Quick Start |
 | **接上真机开始联调**（一步步操作+预期输出+验收清单） | [docs/真机联调手册.md](docs/真机联调手册.md) |
+| **Windows 路线为什么改 AirPlay** | [docs/Windows投屏路线评估.md](docs/Windows投屏路线评估.md) |
 | 查协议细节（报文格式/时序图/fixture 约定） | [docs/协议速查.md](docs/协议速查.md) |
 | **联调踩坑/改代码前**（真机 bug 根因与防复发规约） | [docs/已知问题与归因.md](docs/已知问题与归因.md) |
 | 了解已知问题和剩余工作 | 本 README 的 Roadmap + 协议速查.md 第 9 节 |
@@ -26,7 +27,8 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 ## Project Status
 
 项目仍处于实验阶段。协议层、CoreMedia 解析和报文序列化已经完成，并通过真机抓包 fixture
-进行字节级测试；剩余主要工作是真机 USB 联调和预览体验优化。
+进行字节级测试；Windows 已改为 AirPlay-first，剩余主要工作是 AirPlay helper 打包、预览录制
+闭环，以及 raw USB 在 Linux/高级模式下继续验证。
 
 | 模块 | 状态 |
 | --- | --- |
@@ -34,12 +36,14 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 | QuickTime PING/SYNC/ASYN 协议 | 已按 Go 版移植并覆盖 fixture 测试 |
 | CoreMedia CMSampleBuffer/CMTime/dict 解析 | 已实现 |
 | H.264 Annex-B 与 WAV 落盘 | 已实现 |
-| 实时预览 GUI | 已有骨架，需真机联调 |
+| Windows AirPlay backend | 已有 UxPlay wrapper，待 helper 打包和真机验证 |
+| 实时预览 GUI | Windows 默认 AirPlay；raw USB 预览保留为高级模式 |
 | 音画同步、推流、多设备 | 规划中 |
 
 ## Features
 
-- 通过 `pyusb` 发现 iOS 设备并激活隐藏的 QuickTime USB 配置。
+- Windows 上通过 AirPlay receiver 降低小白用户配置成本。
+- raw USB 模式通过 `pyusb` 发现 iOS 设备并激活隐藏的 QuickTime USB 配置。
 - 实现 PING、SYNC、ASYN、RPLY、HPD1、HPA1、NEED 等核心协议报文。
 - 解析 CoreMedia 的 `CMSampleBuffer`、`CMTime`、format description 和 QuickTime 字典结构。
 - 将视频帧写入 Annex-B `.h264` 文件，将音频写入 `.wav` 文件。
@@ -75,9 +79,10 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 
 - Python 3.10+
 - Windows / macOS / Linux 均可（各系统的准备步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)）
-- libusb 运行环境（Windows 装 `.[windows]` 附加项即自带；macOS `brew install libusb`；Linux 发行版包）
+- Windows 默认走 AirPlay backend；raw USB 高级模式才需要 libusb/Zadig
+- libusb 运行环境（raw USB 模式需要；Windows 装 `.[windows]` 附加项即自带；macOS `brew install libusb`；Linux 发行版包）
 - iPhone 或 iPad，以及可信任的数据线连接
-- Windows 用户需要用 Zadig 为设备安装 libusb-win32 驱动
+- Windows AirPlay backend 需要 UxPlay helper 和 Bonjour/mDNS（安装 Apple Devices 或 iTunes 通常会带上）
 - macOS 原生后端需要 Xcode Command Line Tools 提供的 `swiftc`/`swift`
 
 可选依赖：
@@ -94,8 +99,8 @@ Windows: 双击 scripts\setup-windows.bat
 macOS:   bash scripts/setup-macos.sh
 ```
 
-（Windows 之后还需手动用 Zadig 换一次驱动，脚本结尾和
-[docs/真机联调手册.md](docs/真机联调手册.md) 都有指引。）
+Windows 默认 AirPlay 路线不需要换 Zadig 驱动；raw USB 高级模式才需要按
+[docs/真机联调手册.md](docs/真机联调手册.md) 的 Zadig 步骤处理。
 
 手动安装则使用 `uv` 创建开发环境：
 
@@ -183,6 +188,20 @@ ffplay -f h264 out.h264
 python -m imirror gui
 ```
 
+Windows 上 `gui` 默认启动 AirPlay receiver。手机操作：控制中心 → 屏幕镜像 → 选择
+`iMirror`。首次使用先跑：
+
+```powershell
+python -m imirror windows-doctor
+python -m imirror windows-airplay
+```
+
+老的 raw USB 预览仍保留为高级模式：
+
+```powershell
+python -m imirror gui --backend raw-usb --udid 设备序列号
+```
+
 macOS 原生后端（实验性，不走 raw USB bulk；需要 Screen Recording 权限）：
 
 ```bash
@@ -207,7 +226,9 @@ imirror record out.h264 out.wav
 | `imirror activate [--udid SERIAL]` | 激活指定设备的 QuickTime 配置 |
 | `imirror reset [--udid SERIAL]` | USB reset 指定设备, 恢复半激活状态 |
 | `imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]` | 录制视频和音频 |
-| `imirror gui [--udid SERIAL]` | 打开实时预览窗口 |
+| `imirror gui [--backend auto\|airplay\|raw-usb] [--udid SERIAL]` | 打开实时预览窗口；Windows 默认 AirPlay |
+| `imirror windows-doctor` | Windows AirPlay 后端检查 |
+| `imirror windows-airplay [--name iMirror]` | 启动 Windows AirPlay receiver |
 | `imirror macos-devices [--json]` | macOS 原生后端列出 iOS 屏幕源 |
 | `imirror macos-record out.mov [--udid SERIAL] [--duration 秒]` | macOS 原生后端录制 `.mov` |
 | `imirror macos-gui [--udid SERIAL]` | macOS 原生后端预览窗口 |
@@ -221,7 +242,9 @@ imirror record out.h264 out.wav
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| `devices` 列不出设备 | 数据线只充电不传数据；手机未解锁/未点"信任"；Windows 驱动未换成 libusb-win32 |
+| Windows `gui` 启动后手机看不到 iMirror | 先跑 `windows-doctor`；检查 UxPlay、Bonjour/mDNS、Windows 防火墙、电脑和手机是否在同一局域网 |
+| `windows-doctor` 提示未找到 UxPlay | 下载 Windows 版 UxPlay，把 `uxplay.exe` 放到 `tools\uxplay\uxplay.exe`，或设置 `IMIRROR_UXPLAY` 环境变量 |
+| `devices` 列不出设备 | raw USB 模式下检查数据线、手机信任、Windows Zadig/libusb-win32；AirPlay 模式不依赖 `devices` |
 | `Access denied / insufficient permissions` | Linux 缺 udev 规则，先用 `sudo` 验证，再加规则：`SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE="0666"` |
 | `Resource busy` | 接口被占用：Linux 上是 `usbmuxd`，可 `systemctl stop usbmuxd` 试验；macOS 上是系统服务占用（macOS 建议直接用 QuickTime） |
 | 激活后设备"消失"又出现 | 正常现象：激活触发重新枚举，`record` 会自动等待并重连 |
@@ -303,15 +326,10 @@ imirror/
 
 ## Roadmap
 
-- **Windows 完整支持**：当前已按 C++ 参考补上读超时时的 vendor `0x40/0x40/0x6400/0x6400`
-  “唤醒敲门”与主动 PING 兜底，bulk OUT 写入已加显式超时，避免 Windows 端点不通时
-  卡死；真机日志显示收到首个设备 PING 后不应继续敲门，当前仅在尚未收到任何设备数据前
-  触发唤醒；Windows active QT 半激活残留态会在 record/gui 前强制重发 QT enable 重新武装；
-  若 QT 描述符已暴露但当前仍是普通配置，也会优先走 Apple vendor enable，再回退直接切配置。
-  仍需更多真机验证 libusb-win32 在不同设备/驱动实例下的 bulk 稳定性。
-  换机验证步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)
-  第 4.1 节；根因详见
-  [docs/已知问题与归因.md](docs/已知问题与归因.md) C 类 #5。
+- **Windows 产品路线**：默认主线改为 AirPlay backend，`imirror gui` 在 Windows 上默认启动
+  AirPlay receiver；raw USB/Zadig 路线保留为 `--backend raw-usb` 高级实验模式。路线评估见
+  [docs/Windows投屏路线评估.md](docs/Windows投屏路线评估.md)。下一步是把 UxPlay helper
+  打包进安装流程，并在 AirPlay 预览跑通后接录制。
 - 在 Linux/macOS 上跑通 `record`/`gui`；Ubuntu 首轮按手册第 4.1 节先排除
   libusb/udev/usbmuxd 权限占用。macOS 当前测试机上 iOS 14.4.2、15.1、
   16.7.8、17.7.4、18.3、26.2 均可经 Apple QuickTime 成功投屏；iOS 18.3 重启恢复后
