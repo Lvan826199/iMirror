@@ -20,13 +20,13 @@
 ```powershell
 git pull
 .venv\Scripts\python.exe -m pytest tests -q
-.venv\Scripts\python.exe -m imirror windows-tools-doctor
+.venv\Scripts\python.exe -m imirror windows-poc-check
 ```
 
 验收：
 
-- 测试通过，当前预期 `37 passed`；
-- `windows-tools-doctor` 找到 `tools/usbmuxd.exe`、`ideviceinfo.exe`、驱动安装器；
+- 测试通过，当前预期 `39 passed`；
+- `windows-poc-check` 找到 `tools/usbmuxd.exe`、`ideviceinfo.exe`、驱动安装器，并能跑 chotgpt 设备预检；
 - 不要求用户自行下载驱动工具、usbmuxd、ideviceinfo 或 DLL。
 
 ## W1：复现 chotgpt raw USB 工具链
@@ -39,7 +39,7 @@ git pull
 2. 使用内置工具检查设备：
 
 ```powershell
-.venv\Scripts\python.exe -m imirror windows-ideviceinfo
+.venv\Scripts\python.exe -m imirror windows-poc-check
 ```
 
 3. 如需驱动准备，优先打开内置参考驱动安装器：
@@ -63,7 +63,7 @@ git pull
 验收：
 
 - `windows-usbmuxd` 保持运行，不立即退出；
-- `windows-ideviceinfo` 能输出设备信息；
+- `windows-poc-check` 能通过 `idevice_id` / `ideviceinfo` 输出设备信息；
 - `devices --json` 能看到目标设备和 QT 状态；
 - 若失败，记录 usbmuxd 控制台输出、设备管理器驱动名、手机是否弹信任。
 
@@ -130,7 +130,7 @@ git pull
 
 ## 当前优先级
 
-1. 执行 W1：启动内置 `windows-usbmuxd`，确认参考工具链可跑；
+1. 执行 W1：先跑 `windows-poc-check`，再启动内置 `windows-usbmuxd`，确认参考工具链可跑；
 2. 执行 W2：用 Python raw USB 录制 10 秒，看是否进到 PING/视频帧；
 3. 若 W2 卡住，执行 W3：直接跑 chotgpt Windows 产物验证视频 + WDA 共存；
 4. 执行 W4：把成功路径收敛成内部一键交付流程。
@@ -138,7 +138,7 @@ git pull
 ## 本轮需要用户反馈的日志
 
 - `windows-usbmuxd` 终端完整输出；
-- `windows-ideviceinfo` 输出；
+- `windows-poc-check` 输出；
 - `record -v` 完整日志；
 - 设备管理器中 iPhone 当前驱动名；
 - 如果跑 chotgpt 产物：画面是否出现、WDA 控制是否还能点击/滑动。

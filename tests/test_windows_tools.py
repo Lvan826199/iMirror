@@ -25,3 +25,27 @@ def test_doctor_reports_missing_tool_dir(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "quicktime_video_hack_windows tools check" in out
     assert "tool directory not found" in out
+
+
+def test_poc_check_runs_bundled_tools(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(windows_tools, "doctor", lambda: 0)
+    monkeypatch.setattr(windows_tools, "idevice_id", lambda args: calls.append(("id", args)) or 0)
+    monkeypatch.setattr(windows_tools, "ideviceinfo", lambda args: calls.append(("info", args)) or 0)
+
+    assert windows_tools.poc_check("serial") == 0
+
+    assert calls == [("id", ["-l"]), ("info", ["-u", "serial"])]
+    out = capsys.readouterr().out
+    assert "windows-usbmuxd" in out
+    assert "--udid serial" in out
+
+
+def test_poc_check_stops_when_tools_missing(monkeypatch):
+    calls = []
+    monkeypatch.setattr(windows_tools, "doctor", lambda: 1)
+    monkeypatch.setattr(windows_tools, "idevice_id", lambda args: calls.append(("id", args)) or 0)
+    monkeypatch.setattr(windows_tools, "ideviceinfo", lambda args: calls.append(("info", args)) or 0)
+
+    assert windows_tools.poc_check() == 1
+    assert calls == []

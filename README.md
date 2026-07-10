@@ -187,10 +187,15 @@ ffplay -f h264 out.h264
 python -m imirror gui
 ```
 
-Windows raw USB 高级模式内置了 `chotgpt/quicktime_video_hack_windows` 的 tools：
+Windows 有线主线内置了 `chotgpt/quicktime_video_hack_windows` 的 tools。先执行 POC 预检：
 
 ```powershell
-python -m imirror windows-tools-doctor
+python -m imirror windows-poc-check
+```
+
+预检通过后，开一个终端保持参考 `usbmuxd.exe` 运行：
+
+```powershell
 python -m imirror windows-usbmuxd
 ```
 
@@ -228,6 +233,7 @@ imirror record out.h264 out.wav
 | `imirror reset [--udid SERIAL]` | USB reset 指定设备, 恢复半激活状态 |
 | `imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]` | 录制视频和音频 |
 | `imirror gui [--backend auto\|raw-usb] [--udid SERIAL]` | 打开实时预览窗口；默认 raw USB 有线 |
+| `imirror windows-poc-check [--udid SERIAL]` | 用内置 chotgpt tools 执行 Windows 有线 POC 预检 |
 | `imirror windows-tools-doctor` | 检查 chotgpt 参考项目 tools 是否可用 |
 | `imirror windows-usbmuxd` | 启动 chotgpt 参考项目修改过的 usbmuxd |
 | `imirror windows-ideviceinfo` | 运行 chotgpt tools 中的 ideviceinfo |
@@ -245,7 +251,7 @@ imirror record out.h264 out.wav
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| Windows 有线投屏不出画面 | 先跑 `windows-tools-doctor` 和 `windows-usbmuxd`，再用 `record -v` 收集 PING/SYNC/FEED 日志 |
+| Windows 有线投屏不出画面 | 先跑 `windows-poc-check` 和 `windows-usbmuxd`，再用 `record -v` 收集 PING/SYNC/FEED 日志 |
 | `windows-tools-doctor` 提示缺 tools | 内部仓库应已带 `tools\usbmuxd.exe` 等工具；若缺失，运行 `scripts\fetch-qvh-windows-tools.ps1` 刷新，或设置 `IMIRROR_QVH_TOOLS` 指向工具目录 |
 | `devices` 列不出设备 | raw USB 模式下检查数据线、手机信任、Windows 驱动准备和 `tools\usbmuxd.exe` 是否运行 |
 | `Access denied / insufficient permissions` | Linux 缺 udev 规则，先用 `sudo` 验证，再加规则：`SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE="0666"` |

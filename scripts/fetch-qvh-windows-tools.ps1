@@ -27,7 +27,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $src.FullName "LICENSE") -Destination (Join-Path $dest "LICENSE") -Force
     Copy-Item -LiteralPath (Join-Path $src.FullName "README.md") -Destination (Join-Path $dest "README.md") -Force
     Write-Host "Done. Tools installed to: $dest"
-    Write-Host "Next: .venv\Scripts\python.exe -m imirror windows-tools-doctor"
+    Write-Host "Next: .venv\Scripts\python.exe -m imirror windows-poc-check"
 } finally {
     if (Test-Path $tmp) {
         Remove-Item -LiteralPath $tmp -Recurse -Force

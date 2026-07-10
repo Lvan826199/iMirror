@@ -63,8 +63,8 @@ echo.
 echo --------------------------------------------
 echo 全部就绪! Windows 主线是有线 QuickTime POC:
 echo   1. 连接并信任 iPhone
-echo   2. 开一个终端运行: .venv\Scripts\python.exe -m imirror windows-usbmuxd
-echo   3. 另开终端运行: .venv\Scripts\python.exe -m imirror devices --json
+echo   2. 预检: .venv\Scripts\python.exe -m imirror windows-poc-check
+echo   3. 开一个终端运行: .venv\Scripts\python.exe -m imirror windows-usbmuxd
 echo   4. 录制验证: .venv\Scripts\python.exe -m imirror -v record out.h264 out.wav --duration 10 --udid 设备序列号
 goto :end
 

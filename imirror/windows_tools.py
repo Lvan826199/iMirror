@@ -76,7 +76,7 @@ def doctor() -> int:
         exists = (directory / rel).exists()
         print(f"{'[OK]' if exists else '[FAIL]'} {name}: {rel}")
         ok = ok and exists
-    print("Next: python -m imirror windows-usbmuxd")
+    print("Next: python -m imirror windows-poc-check")
     return 0 if ok else 1
 
 
@@ -105,5 +105,38 @@ def ideviceinfo(args: list[str] | None = None) -> int:
     return run_tool("ideviceinfo", args)
 
 
+def idevice_id(args: list[str] | None = None) -> int:
+    return run_tool("idevice_id", args)
+
+
 def open_driver_installer() -> int:
     return run_tool("driver_installer")
+
+
+def poc_check(udid: str | None = None) -> int:
+    """Run the wired Windows POC preflight using only bundled chotgpt tools."""
+    rc = doctor()
+    if rc != 0:
+        return rc
+
+    print("\n[1/2] Listing devices through bundled idevice_id...")
+    id_args = ["-l"]
+    rc_id = idevice_id(id_args)
+
+    print("\n[2/2] Reading device info through bundled ideviceinfo...")
+    info_args = ["-u", udid] if udid else None
+    rc_info = ideviceinfo(info_args)
+
+    if rc_id != 0 or rc_info != 0:
+        print("\n[FAIL] chotgpt tools did not complete the device check.")
+        print("Check: cable, unlocked/trusted phone, Apple Mobile Device service state, and bundled driver installer.")
+        print("Driver tool: python -m imirror windows-driver-installer")
+        return rc_info or rc_id
+
+    record = "python -m imirror -v record out.h264 out.wav --duration 10"
+    if udid:
+        record += f" --udid {udid}"
+    print("\n[OK] Bundled chotgpt tools can see the device.")
+    print("Next terminal A: python -m imirror windows-usbmuxd")
+    print(f"Next terminal B: {record}")
+    return 0

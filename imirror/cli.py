@@ -7,6 +7,7 @@
   python -m imirror reset               # USB reset, 恢复半激活状态
   python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
   python -m imirror gui                 # 实时预览(Windows 默认 raw USB 有线)
+  python -m imirror windows-poc-check   # Windows 有线 POC 预检
   python -m imirror windows-usbmuxd     # 启动 chotgpt 参考工具里的 usbmuxd
   python -m imirror macos-record out.mov --duration 10   # macOS 原生录制
 """
@@ -105,7 +106,7 @@ def cmd_doctor(_args) -> int:
     if not ios:
         print("✗ 没有识别出 iOS 设备")
         if os_name == "Windows":
-            print("  检查: 先跑 windows-tools-doctor / windows-usbmuxd;")
+            print("  检查: 先跑 windows-poc-check / windows-usbmuxd;")
             print("        如驱动未就绪, 跑 windows-driver-installer 并选择当前 iPhone 条目")
         else:
             print("  发现的可能是键盘/耳机等 Apple 外设")
@@ -288,6 +289,11 @@ def cmd_windows_ideviceinfo(args) -> int:
     return ideviceinfo(args.tool_arg or None)
 
 
+def cmd_windows_poc_check(args) -> int:
+    from .windows_tools import poc_check
+    return poc_check(args.udid)
+
+
 def cmd_windows_driver_installer(_args) -> int:
     from .windows_tools import open_driver_installer
     return open_driver_installer()
@@ -312,7 +318,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="imirror",
         description="iMirror: iOS 投屏采集 (Windows 主攻 QuickTime raw USB 有线)",
-        epilog="示例: imirror gui 或 imirror windows-usbmuxd",
+        epilog="示例: imirror gui 或 imirror windows-poc-check",
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="输出 DEBUG 日志")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -349,6 +355,9 @@ def main(argv=None) -> int:
     p = sub.add_parser("windows-ideviceinfo", help="运行 chotgpt 参考工具里的 ideviceinfo")
     p.add_argument("--tool-arg", action="append", help="透传给 ideviceinfo.exe 的参数, 可重复")
 
+    p = sub.add_parser("windows-poc-check", help="用内置 chotgpt tools 执行 Windows 有线 POC 预检")
+    p.add_argument("--udid", help="设备序列号(可选, 会传给 ideviceinfo 并生成 record 命令)")
+
     sub.add_parser("windows-driver-installer", help="打开 chotgpt 参考工具里的驱动安装器")
 
     p = sub.add_parser("macos-devices", help="macOS 原生后端: 列出 iOS 屏幕源")
@@ -378,6 +387,7 @@ def main(argv=None) -> int:
         "windows-tools-doctor": cmd_windows_tools_doctor,
         "windows-usbmuxd": cmd_windows_usbmuxd,
         "windows-ideviceinfo": cmd_windows_ideviceinfo,
+        "windows-poc-check": cmd_windows_poc_check,
         "windows-driver-installer": cmd_windows_driver_installer,
         "macos-devices": cmd_macos_devices,
         "macos-record": cmd_macos_record,
