@@ -38,6 +38,10 @@ class UsbAdapter:
         self._interface_number = -1
         self._stop = threading.Event()
         self._write_lock = threading.Lock()
+        # Windows 专属"唤醒敲门": C++ 参考(QuickTime.cpp:893-905)在读超时(-116)时
+        # 发 vendor 控制请求 0x40/0x40/0x6400/0x6400 + 主动 PING, 作者注释明言
+        # "不调用可能导致无限读取超时"。Linux/macOS(Go 版路线)不需要。
+        self._kick_enabled = sys.platform == "win32"
 
     # -------------------------------------------------- 生命周期
 
@@ -171,6 +175,8 @@ class UsbAdapter:
                 data = self._ep_in.read(READ_SIZE, timeout=READ_TIMEOUT_MS)
             except usb.core.USBTimeoutError:
                 timeouts += 1
+                if self._kick_enabled:
+                    self._kick_device(timeouts)
                 # 每 3 次超时(约 6s)提示一次, 便于判断是"读不到数据"还是"读错"
                 if timeouts % 3 == 0:
                     log.debug("读超时 %d 次(约 %ds 无数据), 仍在等待设备...",
@@ -186,6 +192,26 @@ class UsbAdapter:
             for frame in extractor.feed(bytes(data)):
                 on_frame(frame)
         log.info("读循环退出")
+
+    def _kick_device(self, timeouts: int) -> None:
+        """读超时时唤醒设备(仅 Windows)。
+
+        对照 C++ 参考 QuickTime.cpp:893-905: 读到 -116(超时)就发 vendor 控制
+        请求(0x40,0x40,0x6400,0x6400) + 主机主动发 PING; 作者注释: 不调用会
+        无限读取超时。Go 版(Linux/macOS)是被动等设备先 PING, Windows 上需主动。
+        """
+        try:
+            self._dev.ctrl_transfer(0x40, 0x40, 0x6400, 0x6400, None)
+            log.debug("唤醒敲门: 已发 vendor 复位请求 0x40/0x6400 (第 %d 次超时)", timeouts)
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
+            log.debug("唤醒敲门控制请求失败: %s", e)
+            return
+        try:
+            from ..protocol.ping import new_ping_packet
+            self.write(new_ping_packet())
+            log.debug("唤醒敲门: 已主动发送 PING")
+        except (usb.core.USBError, NotImplementedError) as e:
+            log.debug("主动 PING 发送失败: %s", e)
 
     def stop_reading(self) -> None:
         self._stop.set()
