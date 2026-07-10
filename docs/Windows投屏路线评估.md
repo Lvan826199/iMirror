@@ -25,7 +25,10 @@ raw USB QuickTime 保留为高级/实验模式。
   依赖 Apple mobile device drivers，而不是要求普通用户换 Zadig 驱动。参考：
   https://idescriptor.com/ 与 https://github.com/iDescriptor/iDescriptor
 - quicktime_video_hack_windows：证明 Windows raw USB QuickTime 可以做成，但需要 usbmuxd、
-  libusb0/libusb 驱动路径，用户门槛高。参考：https://github.com/chotgpt/quicktime_video_hack_windows
+  libusb0/libusb 驱动路径，用户门槛高。它的 `tool/` 目录非常有价值，包含修改过的
+  `usbmuxd.exe`、`ideviceinfo.exe`、`idevice_id.exe`、`iproxy.exe` 和驱动安装器；iMirror
+  通过 `windows-tools-*` 命令复用这些工具，但不把二进制直接提交进仓库。
+  参考：https://github.com/chotgpt/quicktime_video_hack_windows
 - ios-screen-record：Windows 文档走 libusb-win32 + usbmuxd，进一步说明 raw USB 路线绕不开
   驱动安装/服务处理。参考：https://github.com/YueChen-C/ios-screen-record
 
@@ -62,4 +65,7 @@ raw USB QuickTime 保留为高级/实验模式。
 - 老 USB 预览显式使用：`imirror gui --backend raw-usb`。
 - 新增 `imirror windows-doctor` 检查 Bonjour/mDNS 和 UxPlay。
 - 新增 `imirror windows-airplay` 启动 UxPlay receiver。
+- 新增 `scripts/fetch-qvh-windows-tools.ps1` 下载 chotgpt 参考 tools 到本地。
+- 新增 `imirror windows-tools-doctor` / `windows-usbmuxd` / `windows-ideviceinfo` /
+  `windows-driver-installer`，用于 raw USB 高级模式复用参考工具链。
 - `record out.h264 out.wav` 暂时仍是 raw USB 录制；AirPlay 录制会在 AirPlay 预览跑通后再接。

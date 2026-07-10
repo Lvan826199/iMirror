@@ -8,6 +8,7 @@
   python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
   python -m imirror gui                 # 实时预览(Windows 默认 AirPlay)
   python -m imirror windows-airplay     # Windows AirPlay 接收端
+  python -m imirror windows-usbmuxd     # 启动 chotgpt 参考工具里的 usbmuxd
   python -m imirror macos-record out.mov --duration 10   # macOS 原生录制
 """
 from __future__ import annotations
@@ -286,6 +287,26 @@ def cmd_windows_airplay(args) -> int:
     return run_receiver(name=args.name, extra_args=args.uxplay_arg or None)
 
 
+def cmd_windows_tools_doctor(_args) -> int:
+    from .windows_tools import doctor
+    return doctor()
+
+
+def cmd_windows_usbmuxd(args) -> int:
+    from .windows_tools import start_usbmuxd
+    return start_usbmuxd(args.tool_arg or None)
+
+
+def cmd_windows_ideviceinfo(args) -> int:
+    from .windows_tools import ideviceinfo
+    return ideviceinfo(args.tool_arg or None)
+
+
+def cmd_windows_driver_installer(_args) -> int:
+    from .windows_tools import open_driver_installer
+    return open_driver_installer()
+
+
 def cmd_macos_devices(args) -> int:
     from .macos_native import list_devices
     return list_devices(json_output=args.json)
@@ -341,6 +362,16 @@ def main(argv=None) -> int:
     p.add_argument("--name", default="iMirror", help="手机屏幕镜像列表中显示的名称")
     p.add_argument("--uxplay-arg", action="append", help="透传给 UxPlay 的高级参数, 可重复")
 
+    sub.add_parser("windows-tools-doctor", help="检查 quicktime_video_hack_windows 的 tool 目录")
+
+    p = sub.add_parser("windows-usbmuxd", help="启动 chotgpt 参考工具里的 usbmuxd")
+    p.add_argument("--tool-arg", action="append", help="透传给 usbmuxd.exe 的参数, 可重复")
+
+    p = sub.add_parser("windows-ideviceinfo", help="运行 chotgpt 参考工具里的 ideviceinfo")
+    p.add_argument("--tool-arg", action="append", help="透传给 ideviceinfo.exe 的参数, 可重复")
+
+    sub.add_parser("windows-driver-installer", help="打开 chotgpt 参考工具里的驱动安装器")
+
     p = sub.add_parser("macos-devices", help="macOS 原生后端: 列出 iOS 屏幕源")
     p.add_argument("--json", action="store_true", help="以 JSON 输出")
 
@@ -367,6 +398,10 @@ def main(argv=None) -> int:
         "gui": cmd_gui,
         "windows-doctor": cmd_windows_doctor,
         "windows-airplay": cmd_windows_airplay,
+        "windows-tools-doctor": cmd_windows_tools_doctor,
+        "windows-usbmuxd": cmd_windows_usbmuxd,
+        "windows-ideviceinfo": cmd_windows_ideviceinfo,
+        "windows-driver-installer": cmd_windows_driver_installer,
         "macos-devices": cmd_macos_devices,
         "macos-record": cmd_macos_record,
         "macos-gui": cmd_macos_gui,
