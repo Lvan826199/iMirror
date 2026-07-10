@@ -4,7 +4,7 @@
 > `CLAUDE.md` 仅是对本文件的引用，内容改这里即可。
 
 iOS 投屏采集的 Python 实验项目；raw USB 后端移植自 Go 版 quicktime_video_hack，
-Windows 产品主线已改为 AirPlay backend。
+Windows 产品主线是 QuickTime raw USB 有线投屏，并优先复用内置 chotgpt Windows tools。
 先读 `README.md`（现状与剩余工作）和 `docs/协议速查.md`（协议速查）；
 真机联调按 `docs/真机联调手册.md` 的步骤和验收清单执行；
 改代码前必读 `docs/已知问题与归因.md`（真机 bug 的根因与防复发规约）。
@@ -44,7 +44,7 @@ Windows 产品主线已改为 AirPlay backend。
 
 - 项目于 2026-07-07 由 pyqvh 更名为 iMirror（包名 imirror），旧名已全部替换
 - 代码托管: https://gitee.com/xiaozai-van-liu/imirror
-- 协议层/CoreMedia 层完成并通过 fixture 测试（含真机数据端到端解析），当前测试总数 41
+- 协议层/CoreMedia 层完成并通过 fixture 测试（含真机数据端到端解析），当前测试总数 37
 - v0.2.0: fixture 入库开箱即跑、record --duration/实时统计、devices --json、--version
 - 2026-07-08 全量对照审计(4 个 sub-agent)后修复: close_session 时序对齐 Go
   (HPA0/HPD0 背靠背+结尾补发 HPD0, RELS 用计数信号量)、--duration 向上取整偏差;
@@ -85,11 +85,12 @@ Windows 产品主线已改为 AirPlay backend。
   00008110-000275943EEB801E` 成功启动原生预览。结论修正为：这是设备/macOS 的临时
   Valeria 状态卡死，重启可恢复，不是 iOS 18.x 大版本兼容问题。
   详见 docs/已知问题与归因.md G/H 类。
-- 2026-07-10 Windows/Linux 下一轮验证方案已写入 docs/真机联调手册.md 第 4.1 节:
-  Windows 产品路线已改为 AirPlay backend，新增 `windows-doctor` / `windows-airplay`，
-  `gui` 在 Windows 默认走 AirPlay；raw USB/Zadig 路线保留为 `--backend raw-usb` 高级实验模式。
-  路线评估见 docs/Windows投屏路线评估.md。Ubuntu 先排除 libusb/udev/usbmuxd 权限占用，
-  再用同一条 raw USB `record` 链路验证。
+- 2026-07-10 Windows 方向纠偏: 主攻 QuickTime raw USB 有线投屏, chotgpt/quicktime_video_hack_windows
+  不只是源码参考, 也是 Windows 工具链和产品化交付参考。项目已内置 `tools/` 并新增
+  `windows-tools-doctor` / `windows-usbmuxd` / `windows-ideviceinfo` / `windows-driver-installer`。
+  `gui` 默认 raw USB；当前只维护有线 QuickTime 路线。下一步按 docs/Windows投屏实施计划.md
+  的 W1/W2 先复现 chotgpt 工具链和 Python raw USB 10s 录制；若卡住, W3 直接跑 chotgpt
+  Windows 产物验证有线视频 + MSCA/WDA 控制共存。Ubuntu 仍按 raw USB 链路排查。
 - 未销案的验证项: SPS/PPS 提取位置(formatdescriptor.py avcC 递归扫描 vs Go 固定 key,
   真机日志里"写入参数集"出现即销案)
 - 剩余工作优先级见 README.md 末尾

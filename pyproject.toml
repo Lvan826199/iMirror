@@ -1,7 +1,7 @@
 [project]
 name = "imirror"
 version = "0.2.0"
-description = "iOS 投屏采集实验项目 - AirPlay 与 QuickTime raw USB 后端"
+description = "iOS 有线投屏采集实验项目 - QuickTime raw USB 后端"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

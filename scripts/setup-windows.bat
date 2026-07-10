@@ -54,29 +54,26 @@ if errorlevel 1 (
 
 echo.
 echo ============================================
-echo  软件环境就绪! 运行 Windows AirPlay 检查:
+echo  软件环境就绪! 检查内置 Windows 有线投屏工具:
 echo ============================================
-.venv\Scripts\python.exe -m imirror windows-doctor
-if errorlevel 1 goto :airplay_help
+.venv\Scripts\python.exe -m imirror windows-tools-doctor
+if errorlevel 1 goto :tools_help
 
 echo.
 echo --------------------------------------------
-echo 全部就绪! 启动投屏接收端:
-echo   .venv\Scripts\python.exe -m imirror windows-airplay
-echo 手机操作: 控制中心, 屏幕镜像, 选择 iMirror
+echo 全部就绪! Windows 主线是有线 QuickTime POC:
+echo   1. 连接并信任 iPhone
+echo   2. 开一个终端运行: .venv\Scripts\python.exe -m imirror windows-usbmuxd
+echo   3. 另开终端运行: .venv\Scripts\python.exe -m imirror devices --json
+echo   4. 录制验证: .venv\Scripts\python.exe -m imirror -v record out.h264 out.wav --duration 10 --udid 设备序列号
 goto :end
 
-:airplay_help
+:tools_help
 echo.
 echo --------------------------------------------
-echo AirPlay 检查未完全通过。Windows 默认路线不需要 Zadig 换驱动。
-echo 如果提示缺 UxPlay:
-echo   1. 打开 https://github.com/leapbtw/uxplay-windows/releases
-echo   2. 下载并安装 uxplaywindows-installer.msi
-echo   3. 或使用 portable zip, 把 uxplay-windows.exe 放到 tools\uxplay\uxplay-windows.exe
-echo   4. 重新运行: .venv\Scripts\python.exe -m imirror windows-doctor
-echo 如果手机看不到 iMirror, 检查 Windows 防火墙, Bonjour, 手机和电脑同一局域网
-echo raw USB 是高级实验模式, 才需要按 docs\真机联调手册.md 使用 Zadig
+echo 内置 tools 检查未通过。内部仓库应包含 tools\usbmuxd.exe 等文件。
+echo 若缺失, 运行: powershell -ExecutionPolicy Bypass -File scripts\fetch-qvh-windows-tools.ps1
+echo 当前 Windows 路线只维护有线 QuickTime POC, 请先补齐内置 tools。
 goto :end
 
 :fail

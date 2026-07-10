@@ -2,71 +2,76 @@
 
 更新时间：2026-07-10
 
-结论：Windows 小白版不再把 raw USB QuickTime 作为默认主线。默认路线改为
-AirPlay Receiver；Apple 官方驱动/USB Live Screen 作为第二阶段调研；现有
-raw USB QuickTime 保留为高级/实验模式。
+结论：Windows 方案重新聚焦 **QuickTime raw USB 有线投屏**。`chotgpt/quicktime_video_hack_windows` 不只是源码参考，更是 Windows 工具链和产品化交付参考；当前只维护这条有线 QuickTime 路线。
 
-## 路线对比
+## 路线优先级
 
-| 路线 | 用户门槛 | 成功案例 | 难度 | 当前结论 |
+| 优先级 | 路线 | 用户门槛 | 成功案例 | 当前结论 |
 | --- | --- | --- | --- | --- |
-| AirPlay Receiver | 低：手机控制中心点“屏幕镜像” | UxPlay、iDescriptor | 中 | Windows 默认主线 |
-| Apple 官方驱动 + USB Live Screen | 中：不换驱动，但需摸清 Apple/Windows 私有入口 | iDescriptor 标注支持 Live Screen | 高 | 第二阶段验证 |
-| raw USB QuickTime + libusb-win32 | 高：Zadig、禁用服务、驱动冲突、重枚举 | quicktime_video_hack_windows、ios-screen-record | 高 | 保留为高级模式 |
-| QuickTime for Windows | 中：旧组件、安全风险 | 官方已停止支持 | 高且不稳定 | 放弃 |
+| 1 | chotgpt QuickTime 工具链直接验证 | 中：内置 tools，少下载少选择 | quicktime_video_hack_windows | **当前主线** |
+| 2 | 集成 chotgpt exe/DLL/核心库 | 中：最快接入 MSCA POC | quicktime_video_hack_windows | POC 成功后评估 |
+| 3 | 移植关键逻辑到 iMirror Python | 高：长期最干净，但 Windows 坑最多 | iMirror raw USB | 后续收敛路线 |
+| 4 | Apple 官方驱动 + USB Live Screen | 中：不换驱动但私有入口不明 | iDescriptor 标注支持 Live Screen | 第二阶段研究 |
 
-## 外部成功案例
+## chotgpt 项目的三层价值
 
-- UxPlay：开源 AirPlay Mirror/Audio receiver，上游项目支持 AirPlay 镜像，适合先作为
-  Windows AirPlay backend 的外部 helper。参考：https://github.com/FDH2/UxPlay
-- UxPlay Windows 打包：提供 Windows 版 UxPlay 发行包，适合第一阶段快速验证。
-  参考：https://github.com/leapbtw/uxplay-windows/releases
-- iDescriptor：跨平台 iDevice 管理工具，功能表包含 AirPlay 和 Live Screen，Windows 安装说明
-  依赖 Apple mobile device drivers，而不是要求普通用户换 Zadig 驱动。参考：
-  https://idescriptor.com/ 与 https://github.com/iDescriptor/iDescriptor
-- quicktime_video_hack_windows：证明 Windows raw USB QuickTime 可以做成，但需要 usbmuxd、
-  libusb0/libusb 驱动路径，用户门槛高。它的 `tool/` 目录非常有价值，包含修改过的
-  `usbmuxd.exe`、`ideviceinfo.exe`、`idevice_id.exe`、`iproxy.exe` 和驱动安装器；本项目为
-  私有化内部使用，已将这些 tools vendor 到 `tools/`，并保留
-  上游 `LICENSE`/`README.md` 作为来源记录。
-  参考：https://github.com/chotgpt/quicktime_video_hack_windows
-- ios-screen-record：Windows 文档走 libusb-win32 + usbmuxd，进一步说明 raw USB 路线绕不开
-  驱动安装/服务处理。参考：https://github.com/YueChen-C/ios-screen-record
+### 1. 协议层参考
 
-## 难度评估
+- QuickTime raw USB 激活流程；
+- bulk 读写与接口选择；
+- PING/SYNC/ASYN/NEED；
+- Windows 读超时后的 vendor `0x40/0x40/0x6400/0x6400` 唤醒敲门；
+- 音视频回调与 Qt 预览示例。
 
-### 第一阶段：AirPlay MVP
+### 2. Windows 工具链参考
 
-目标：`python -m imirror gui` 在 Windows 上启动 AirPlay receiver，iPhone 控制中心能看到
-`iMirror` 并投屏。
+仓库 `tool/` 目录包含：
 
-预估：2-4 天完成可验证 MVP；1-2 周做成相对稳定的预览/录制/打包体验。
+- 修改过的 `usbmuxd.exe`，用于监听 37015 并辅助设备进入 QuickTime 模式；
+- `ideviceinfo.exe` / `idevice_id.exe` / `iproxy.exe`；
+- 驱动安装器和 libusb 运行库；
+- 可用于验证的 Qt 示例和 release 产物。
 
-技术策略：先用 UxPlay 作为外部 helper，iMirror 负责检查、启动和后续打包集成。这样能最快
-验证 Windows 防火墙、mDNS/Bonjour、手机发现链路是否顺。
+本项目是私有化内部使用，已将这些 tools 直接 vendor 到 `tools/`，并保留上游 `LICENSE` / `README.md` 作为来源记录。
 
-### 第二阶段：Apple 官方驱动 / USB Live Screen
+### 3. 产品化交付参考
 
-目标：保留 Apple 官方驱动，不碰 Zadig，通过 Apple Mobile Device Support 或类似 iDescriptor
-的 Live Screen 路径拿到画面。
+产品化方向不应要求用户自行拼 Zadig、libusb、DLL 和 usbmuxd。Windows 内部版应优先做到：
 
-预估：2-4 周起步，风险高。关键不确定性是 Windows 上可调用的 Apple 私有入口、授权/签名、
-是否需要 native helper。
+```text
+信任设备 → 一键脚本检查/准备工具 → 启动有线投屏程序
+```
 
-### 保留路线：raw USB QuickTime
+Zadig 只作为排障备选，不作为默认用户路径。
 
-目标：继续作为开发者实验路径，保留现有 `devices`/`activate`/`record`/`gui --backend raw-usb`。
+## 对 MSCA 的意义
 
-预估：能继续推进，但不适合默认产品体验。Zadig、libusb-win32、Apple Mobile Device Service、
-重枚举后驱动绑定等问题会制造大量售后成本。
+Windows QuickTime POC 不应先从“Python 纯复现所有 Windows libusb 行为”开始，而应先验证：
+
+1. 用 `tools/` 内置工具完成驱动/服务准备；
+2. 用 chotgpt Windows 程序或工具链跑通 iPhone 有线投屏；
+3. 同时启动 MSCA 的 WDA 控制，验证点击/滑动是否仍然生效；
+4. 成功后再选择集成方式。
+
+集成方式评估：
+
+| 方式 | 优点 | 缺点 |
+| --- | --- | --- |
+| 直接调用 chotgpt exe | 最快验证，改动小 | 视频帧接入 MSCA 可能麻烦 |
+| 调 chotgpt DLL/核心库 | 更适合产品化 | 要确认导出接口和编译方式 |
+| 移植关键逻辑到 iMirror | 长期最干净 | 最慢，Windows 坑最多 |
+| iMirror 复用工具链、保留 Python 协议 | 折中 | 需要维护边界 |
+
+当前更倾向：先用 chotgpt 工具/产物做 Windows POC，不急着让 iMirror 纯 Python 复现全部 Windows 行为。
 
 ## 当前实现决策
 
-- Windows 上 `imirror gui` 默认等价于 `imirror gui --backend airplay`。
-- 老 USB 预览显式使用：`imirror gui --backend raw-usb`。
-- 新增 `imirror windows-doctor` 检查 Bonjour/mDNS 和 UxPlay。
-- 新增 `imirror windows-airplay` 启动 UxPlay receiver。
-- 内置 chotgpt 参考 tools；`scripts/fetch-qvh-windows-tools.ps1` 用于刷新本地副本。
-- 新增 `imirror windows-tools-doctor` / `windows-usbmuxd` / `windows-ideviceinfo` /
-  `windows-driver-installer`，用于 raw USB 高级模式复用参考工具链。
-- `record out.h264 out.wav` 暂时仍是 raw USB 录制；AirPlay 录制会在 AirPlay 预览跑通后再接。
+- 内置 chotgpt 参考 tools 到 `tools/`；
+- 新增 `imirror windows-tools-doctor` / `windows-usbmuxd` / `windows-ideviceinfo` / `windows-driver-installer`；
+- `imirror gui` 默认 raw USB，有线优先；
+- 下一阶段优先执行 `docs/Windows投屏实施计划.md` 的 W1/W2：先跑 chotgpt 工具链，再跑 Python raw USB 录制。
+
+## 参考
+
+- https://github.com/chotgpt/quicktime_video_hack_windows
+- https://github.com/YueChen-C/ios-screen-record
