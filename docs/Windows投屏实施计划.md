@@ -25,7 +25,7 @@ git pull
 
 验收：
 
-- 测试通过，当前预期 `40 passed`；
+- 测试通过，当前预期 `41 passed`；
 - `windows-tools-doctor` 找到 `tools/usbmuxd.exe`、`ideviceinfo.exe`、驱动安装器；
 - `windows-doctor` 能说明 AirPlay/UxPlay 缺口或通过。
 

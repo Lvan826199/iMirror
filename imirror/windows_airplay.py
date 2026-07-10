@@ -83,6 +83,27 @@ def _has_bonjour() -> bool:
     )
 
 
+def _uxplay_windows_config_path() -> Path | None:
+    appdata = os.environ.get("APPDATA")
+    if not appdata:
+        return None
+    return Path(appdata) / "leapbtw" / "uxplay-windows" / "arguments.txt"
+
+
+def _write_uxplay_windows_args(executable: str, name: str, extra_args: list[str] | None) -> None:
+    if Path(executable).name.lower() != "uxplay-windows.exe":
+        return
+    path = _uxplay_windows_config_path()
+    if path is None:
+        return
+    args = ["-n", name, "-nh", *(extra_args or [])]
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(" ".join(args), encoding="utf-8")
+    except OSError as e:
+        print(f"UxPlay 参数文件写入失败, 将只使用命令行参数: {e}")
+
+
 def status() -> AirPlayStatus:
     return AirPlayStatus(
         platform_ok=sys.platform == "win32",
@@ -127,6 +148,7 @@ def run_receiver(name: str = "iMirror", extra_args: list[str] | None = None) -> 
     if info.executable is None:
         doctor()
         return 1
+    _write_uxplay_windows_args(info.executable, name, extra_args)
     args = [info.executable, "-n", name]
     if extra_args:
         args.extend(extra_args)

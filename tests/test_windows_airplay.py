@@ -28,3 +28,26 @@ def test_doctor_reports_missing_uxplay_on_windows(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Windows AirPlay 后端检查" in out
     assert "未找到 UxPlay" in out
+
+
+def test_uxplay_windows_writes_arguments_file(monkeypatch):
+    writes = []
+
+    class _Parent:
+        def mkdir(self, parents, exist_ok):
+            writes.append(("mkdir", parents, exist_ok))
+
+    class _ArgsFile:
+        parent = _Parent()
+
+        def write_text(self, text, encoding):
+            writes.append(("write", text, encoding))
+
+    monkeypatch.setattr(windows_airplay, "_uxplay_windows_config_path", lambda: _ArgsFile())
+    windows_airplay._write_uxplay_windows_args(
+        r"C:\Program Files\uxplay-windows\uxplay-windows.exe",
+        "iMirror",
+        ["-fps", "30"],
+    )
+
+    assert writes == [("mkdir", True, True), ("write", "-n iMirror -nh -fps 30", "utf-8")]
