@@ -43,7 +43,10 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 - 实现 PING、SYNC、ASYN、RPLY、HPD1、HPA1、NEED 等核心协议报文。
 - 解析 CoreMedia 的 `CMSampleBuffer`、`CMTime`、format description 和 QuickTime 字典结构。
 - 将视频帧写入 Annex-B `.h264` 文件，将音频写入 `.wav` 文件。
-- 提供命令行工具：环境自检（doctor）、设备列表（含 JSON 输出）、激活、录制（支持限时与实时统计）、实时预览。
+- 提供命令行工具：环境自检（doctor）、设备列表（含 JSON 输出）、激活、USB reset 恢复、录制（支持限时与实时统计）、实时预览。
+- macOS 提供实验性 CoreMediaIO/AVFoundation 原生后端，可列出系统 iOS 屏幕源、
+  录制 `.mov` 或打开预览窗口；首次运行会把 Swift helper 编译并 ad-hoc 签名到
+  `~/Library/Caches/imirror/`。
 - Windows / macOS 一键安装脚本（`scripts/`），Linux 两条命令装好。
 - 使用真机抓包 fixture 进行协议解析和序列化的字节级回归测试，fixture 已随仓库提供，
   克隆即可运行全部测试。
@@ -74,7 +77,8 @@ iMirror 是一个通过 USB 数据线采集 iPhone/iPad 屏幕视频和音频流
 - Windows / macOS / Linux 均可（各系统的准备步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)）
 - libusb 运行环境（Windows 装 `.[windows]` 附加项即自带；macOS `brew install libusb`；Linux 发行版包）
 - iPhone 或 iPad，以及可信任的数据线连接
-- Windows 用户需要用 Zadig 为设备安装 libusbK 或 WinUSB 驱动
+- Windows 用户需要用 Zadig 为设备安装 libusb-win32 驱动
+- macOS 原生后端需要 Xcode Command Line Tools 提供的 `swiftc`/`swift`
 
 可选依赖：
 
@@ -141,10 +145,20 @@ python -m imirror devices
 python -m imirror devices --json    # JSON 输出, 便于脚本调用
 ```
 
+`devices --json` 会同时输出 `active_config`、`usbmux_config`、`qt_config`、
+`qt_available` 和 `qt_enabled`。其中 `qt_available` 表示描述符里能看到
+QuickTime/Valeria 配置，`qt_enabled` 才表示当前活动配置已经切到 QT。
+
 激活 QuickTime USB 配置：
 
 ```bash
 python -m imirror activate
+```
+
+USB reset 恢复设备普通枚举（macOS 半激活/残留 QT 描述符时很有用）：
+
+```bash
+python -m imirror reset
 ```
 
 录制屏幕和音频（自动激活 QT 配置，Ctrl+C 停止）：
@@ -155,6 +169,7 @@ python -m imirror record out.h264 out.wav --duration 30   # 限时 30 秒
 ```
 
 录制过程中每 5 秒打印一次统计（视频帧数/fps/数据量、音频帧数）。
+如果会话结束时没有收到任何视频帧，`record` 会返回非 0，并提示按 `-v` 日志排查 USB/协议链路。
 
 播放录制出的视频流：
 
@@ -166,6 +181,14 @@ ffplay -f h264 out.h264
 
 ```bash
 python -m imirror gui
+```
+
+macOS 原生后端（实验性，不走 raw USB bulk；需要 Screen Recording 权限）：
+
+```bash
+python -m imirror macos-devices
+python -m imirror macos-record out.mov --duration 10
+python -m imirror macos-gui
 ```
 
 安装为 editable 包后，也可以直接使用 console script：
@@ -182,8 +205,12 @@ imirror record out.h264 out.wav
 | `imirror doctor` | 环境自检，逐项检查并给出当前系统的修复建议 |
 | `imirror devices [--json]` | 列出 iOS 设备以及 QuickTime 配置状态 |
 | `imirror activate [--udid SERIAL]` | 激活指定设备的 QuickTime 配置 |
+| `imirror reset [--udid SERIAL]` | USB reset 指定设备, 恢复半激活状态 |
 | `imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]` | 录制视频和音频 |
 | `imirror gui [--udid SERIAL]` | 打开实时预览窗口 |
+| `imirror macos-devices [--json]` | macOS 原生后端列出 iOS 屏幕源 |
+| `imirror macos-record out.mov [--udid SERIAL] [--duration 秒]` | macOS 原生后端录制 `.mov` |
+| `imirror macos-gui [--udid SERIAL]` | macOS 原生后端预览窗口 |
 | `imirror --version` | 显示版本号 |
 
 可以添加 `-v` 或 `--verbose` 输出更详细日志（观察协议握手细节）。
@@ -192,10 +219,15 @@ imirror record out.h264 out.wav
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| `devices` 列不出设备 | 数据线只充电不传数据；手机未解锁/未点"信任"；Windows 驱动未换成 libusbK/WinUSB |
+| `devices` 列不出设备 | 数据线只充电不传数据；手机未解锁/未点"信任"；Windows 驱动未换成 libusb-win32 |
 | `Access denied / insufficient permissions` | Linux 缺 udev 规则，先用 `sudo` 验证，再加规则：`SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE="0666"` |
 | `Resource busy` | 接口被占用：Linux 上是 `usbmuxd`，可 `systemctl stop usbmuxd` 试验；macOS 上是系统服务占用（macOS 建议直接用 QuickTime） |
 | 激活后设备"消失"又出现 | 正常现象：激活触发重新枚举，`record` 会自动等待并重连 |
+| `devices` 显示 `可用但未激活` | macOS 上 QT 描述符可能保留但当前 active config 已回普通配置；`record`/`activate` 会自动切回 QT |
+| macOS claim 成功但 0 帧 / bulk 超时 | 保持手机解锁并已信任；退出 QuickTime 等占用程序；换 Mac 直连或高速 USB 口；必要时先跑 `python -m imirror reset` 清掉半激活状态；现代 macOS 可能需要 CoreMediaIO/AVFoundation 原生路径和 Screen Recording 权限 |
+| `macos-record` 报 `recording failed before start` / `valeria connection not seen` | 系统 iOSScreenCaptureAssistant 未能让手机进入 Valeria 出流态；保持手机解锁，重插数据线，退出 QuickTime/录屏占用程序后重试 |
+| QuickTime Player 选择 iPhone 也报“这项操作无法完成” | Apple 原生投屏链路本身失败，常见日志为 `StartStream throwing valeria connection not seen` / `AVFoundationErrorDomain -11800`。先 `python -m imirror reset`，再重启 Mac/iPhone、换直连口/数据线复验；QuickTime 仍失败时 iMirror 暂无可绕过的系统级通道 |
+| 某台设备突然 `valeria connection not seen`，但其他设备可投屏 | 优先视为设备/macOS 的 Valeria 临时状态卡死；先 `python -m imirror reset`、重插线，再重启 iPhone 和 Mac。重启后恢复时，不要归因到 iOS 大版本兼容性 |
 | 录下的 .h264 无法播放 | 大概率没写入 SPS/PPS——正是真机联调要验证的 TODO，用 `-v` 看"写入参数集"日志是否出现 |
 | 录制中途停止收帧 | NEED 流控断了（每个 FEED 必须回 NEED），`-v` 观察 FEED/NEED 是否成对 |
 
@@ -249,6 +281,7 @@ git clone --depth 1 https://github.com/danielpaulus/quicktime_video_hack referen
 imirror/
 ├── imirror/
 │   ├── cli.py                  # 命令行入口
+│   ├── macos_native.py         # macOS CoreMediaIO/AVFoundation 原生后端
 │   ├── session.py              # 消息状态机
 │   ├── protocol/               # QuickTime 协议分帧和报文
 │   ├── coremedia/              # CoreMedia 二进制结构解析
@@ -268,11 +301,16 @@ imirror/
 
 ## Roadmap
 
-- **Windows 完整支持**：当前在复合子接口的 bulk 读写上撞墙（控制传输可用但 bulk
-  路由不到子接口，Windows 复合设备驱动模型固有问题）。需移植 usbmuxd/lockdown 让
-  设备以 QuickTime 为默认配置重新枚举（参考 chotgpt 的 C++ 版方案）。详见
+- **Windows 完整支持**：当前已按 C++ 参考补上读超时时的 vendor `0x40/0x40/0x6400/0x6400`
+  “唤醒敲门”与主动 PING 兜底；仍需更多真机验证 libusb-win32 在不同设备/驱动实例下
+  的 bulk 稳定性。换机验证步骤见 [docs/真机联调手册.md](docs/真机联调手册.md)
+  第 4.1 节；根因详见
   [docs/已知问题与归因.md](docs/已知问题与归因.md) C 类 #5。
-- 在 Linux/macOS 上跑通 `record`/`gui`（协议实现为 Go 版忠实移植，理论直接可用）。
+- 在 Linux/macOS 上跑通 `record`/`gui`；Ubuntu 首轮按手册第 4.1 节先排除
+  libusb/udev/usbmuxd 权限占用。macOS 当前测试机上 iOS 14.4.2、15.1、
+  16.7.8、17.7.4、18.3、26.2 均可经 Apple QuickTime 成功投屏；iOS 18.3 重启恢复后
+  `imirror macos-gui` 原生预览已成功启动。此前 `valeria connection not seen`
+  后续按临时 Valeria 状态卡死排障。
 - 进一步确认 `formatdescriptor.py` 中 SPS/PPS 提取位置。
 - 优化 GUI 延迟、解码进程和丢帧策略。
 - 增加音画同步、RTMP/WebRTC 推流和虚拟摄像头输出。

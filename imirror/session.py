@@ -20,6 +20,8 @@ import struct
 import threading
 from typing import Callable, Protocol
 
+import usb.core
+
 from .protocol import constants as c
 from .protocol import sync as sync_pkt
 from .protocol import asyn as asyn_pkt
@@ -189,6 +191,15 @@ class MessageProcessor:
 
     # -------------------------------------------------- 关闭
 
+    def _try_write_stop_packet(self, frame: bytes, name: str) -> bool:
+        try:
+            self._write(frame)
+            return True
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
+            log.warning("发送 %s 失败: %s", name, e)
+            self._stop_callback()
+            return False
+
     def close_session(self, timeout: float = 3.0) -> None:
         """通知设备停止推流。
 
@@ -196,13 +207,20 @@ class MessageProcessor:
         等 2 次 RELS(每次最多 timeout 秒, 超时直接放弃), 收齐后结尾再补发一次 HPD0。
         """
         log.info("请求设备停止推流...")
-        self._write(asyn_pkt.new_asyn_hpa0_packet(self._device_audio_clock_ref))
-        self._write(asyn_pkt.new_asyn_hpd0_packet())
-        for _ in range(2):
-            if not self._release_sem.acquire(timeout=timeout):
-                log.warning("等待设备 RELS 超时")
-                break
-        else:
-            self._write(asyn_pkt.new_asyn_hpd0_packet())
-        self._consumer.stop()
-        log.info("会话已关闭 (视频帧:%d 音频帧:%d)", self._video_count, self._audio_count)
+        try:
+            sent_hpa0 = self._try_write_stop_packet(
+                asyn_pkt.new_asyn_hpa0_packet(self._device_audio_clock_ref), "HPA0"
+            )
+            sent_hpd0 = self._try_write_stop_packet(asyn_pkt.new_asyn_hpd0_packet(), "HPD0")
+            if sent_hpa0 or sent_hpd0:
+                for _ in range(2):
+                    if not self._release_sem.acquire(timeout=timeout):
+                        log.warning("等待设备 RELS 超时")
+                        break
+                else:
+                    self._try_write_stop_packet(asyn_pkt.new_asyn_hpd0_packet(), "HPD0")
+            else:
+                log.warning("停止报文均未发送成功, 不再等待 RELS")
+        finally:
+            self._consumer.stop()
+            log.info("会话已关闭 (视频帧:%d 音频帧:%d)", self._video_count, self._audio_count)

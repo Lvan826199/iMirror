@@ -39,11 +39,18 @@ class IosDevice:
     vid: int
     pid: int
     usbmux_config_index: int   # bConfigurationValue
-    qt_config_index: int       # -1 表示 QT 配置未激活(需要先发激活控制请求)
+    qt_config_index: int       # -1 表示没有暴露 QT 配置描述符
+    active_config_index: int   # 当前活动 bConfigurationValue, -1 表示无法读取
+
+    @property
+    def qt_available(self) -> bool:
+        """是否能在配置描述符里看到 QuickTime/Valeria 接口。"""
+        return self.qt_config_index != -1
 
     @property
     def qt_enabled(self) -> bool:
-        return self.qt_config_index != -1
+        """QuickTime/Valeria 配置是否就是当前活动 USB 配置。"""
+        return self.qt_available and self.active_config_index == self.qt_config_index
 
 
 def find_ios_devices() -> list[IosDevice]:
@@ -51,7 +58,7 @@ def find_ios_devices() -> list[IosDevice]:
     for dev in usb_find(find_all=True, idVendor=APPLE_VID):
         try:
             info = _inspect(dev)
-        except (usb.core.USBError, ValueError) as e:
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
             # 复合设备子接口/未换驱动的设备读不了描述符是常态, 只在 DEBUG 级记录
             log.debug("检查设备 %04x:%04x 失败: %s", dev.idVendor, dev.idProduct, e)
             continue
@@ -72,7 +79,7 @@ def open_by_serial(serial: str) -> usb.core.Device:
         try:
             if clean_str(usb.util.get_string(dev, dev.iSerialNumber)) == serial:
                 return dev
-        except (usb.core.USBError, ValueError):
+        except (usb.core.USBError, NotImplementedError, ValueError):
             # ValueError(no langid): Windows 未换驱动/Linux 无权限时读不了字符串描述符
             pass
         usb.util.dispose_resources(dev)
@@ -81,14 +88,25 @@ def open_by_serial(serial: str) -> usb.core.Device:
 
 def _inspect(dev: usb.core.Device) -> IosDevice | None:
     muxconfig, qtconfig = -1, -1
+    active_config = -1
+    try:
+        active_config = dev.get_active_configuration().bConfigurationValue
+    except (usb.core.USBError, NotImplementedError, ValueError) as e:
+        log.debug("读取活动配置失败: %s", e)
     for cfg in dev:
+        has_mux = False
+        has_qt = False
         for intf in cfg:
             if intf.bInterfaceClass != CLASS_VENDOR_SPECIFIC:
                 continue
             if intf.bInterfaceSubClass == SUBCLASS_USBMUX:
-                muxconfig = cfg.bConfigurationValue
+                has_mux = True
             elif intf.bInterfaceSubClass == SUBCLASS_QUICKTIME:
-                qtconfig = cfg.bConfigurationValue
+                has_qt = True
+        if has_mux and not has_qt:
+            muxconfig = cfg.bConfigurationValue
+        if has_qt:
+            qtconfig = cfg.bConfigurationValue
     if muxconfig == -1 and qtconfig == -1:
         return None  # 不是 iOS 设备(如 Apple 键盘)
     serial = clean_str(usb.util.get_string(dev, dev.iSerialNumber))
@@ -97,4 +115,5 @@ def _inspect(dev: usb.core.Device) -> IosDevice | None:
         serial=serial, product_name=product,
         vid=dev.idVendor, pid=dev.idProduct,
         usbmux_config_index=muxconfig, qt_config_index=qtconfig,
+        active_config_index=active_config,
     )

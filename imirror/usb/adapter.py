@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import sys
 import threading
+import time
 from typing import Callable
 
 import usb.core
@@ -56,7 +57,7 @@ class UsbAdapter:
         active = None
         try:
             active = dev.get_active_configuration().bConfigurationValue
-        except (usb.core.USBError, NotImplementedError) as e:
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
             log.debug("读活动配置失败(继续尝试设置): %s", e)
         if active == target:
             log.debug("活动配置已是 QT 配置 #%d, 跳过切换", target)
@@ -64,20 +65,20 @@ class UsbAdapter:
             log.debug("活动配置 #%s -> 目标 QT 配置 #%d", active, target)
             try:
                 dev.set_configuration(target)
-            except (usb.core.USBError, NotImplementedError) as e:
+            except (usb.core.USBError, NotImplementedError, ValueError) as e:
                 log.warning("set_configuration(%d) 失败: %s — 改用标准控制请求重试", target, e)
                 try:
                     # bmRequestType=0x00(标准/设备), bRequest=0x09(SET_CONFIGURATION)
                     dev.ctrl_transfer(0x00, 0x09, target, 0, None)
-                except (usb.core.USBError, NotImplementedError) as e2:
+                except (usb.core.USBError, NotImplementedError, ValueError) as e2:
                     log.warning("SET_CONFIGURATION 控制请求也失败: %s", e2)
 
         try:
             cfg = dev.get_active_configuration()
-        except (usb.core.USBError, NotImplementedError) as e:
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
             raise RuntimeError(
                 f"无法读取活动 USB 配置: {e}。Windows 上多为驱动未就绪, "
-                f"请对当前形态的 iPhone 用 Zadig 换 libusbK(详见 docs/真机联调手册.md)"
+                f"请对当前形态的 iPhone 用 Zadig 换 libusb-win32(详见 docs/真机联调手册.md)"
             ) from e
         if cfg.bConfigurationValue != target:
             log.warning("活动配置仍是 #%d(目标 #%d), 尝试直接在当前配置里找 QT 接口",
@@ -98,7 +99,16 @@ class UsbAdapter:
                         "改成 libusb-win32(libusb0), 它支持切配置。\n详见 docs/真机联调手册.md 的驱动选择表。")
             raise RuntimeError(msg)
         self._interface_number = intf.bInterfaceNumber
-        usb.util.claim_interface(dev, self._interface_number)
+        for attempt in range(1, 6):
+            try:
+                usb.util.claim_interface(dev, self._interface_number)
+                break
+            except (usb.core.USBError, NotImplementedError, ValueError) as e:
+                if attempt == 5:
+                    raise RuntimeError(f"claim QuickTime 接口 #{self._interface_number} 失败: {e}") from e
+                log.debug("claim QuickTime 接口 #%d 失败(第 %d 次, 等待重试): %s",
+                          self._interface_number, attempt, e)
+                time.sleep(0.3)
 
         # Windows/libusb-win32 上, 端点常需显式设 altsetting 才真正激活,
         # 否则 bulk 读写会一直超时。失败(如驱动不支持)可忽略。
@@ -109,7 +119,7 @@ class UsbAdapter:
             )
             log.debug("set_interface_altsetting(intf=%d, alt=%d) 成功",
                       self._interface_number, intf.bAlternateSetting)
-        except (usb.core.USBError, NotImplementedError) as e:
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
             log.debug("set_interface_altsetting 失败(可忽略): %s", e)
 
         self._ep_in = usb.util.find_descriptor(
@@ -133,8 +143,8 @@ class UsbAdapter:
         for ep in (self._ep_in, self._ep_out):
             try:
                 dev.clear_halt(ep.bEndpointAddress)
-            # Windows/libusbK 下 clear_halt 可能返回 NOT_SUPPORTED(NotImplementedError)
-            except (usb.core.USBError, NotImplementedError) as e:
+            # Windows WinUSB/libusbK 下 clear_halt 可能返回 NOT_SUPPORTED(NotImplementedError)
+            except (usb.core.USBError, NotImplementedError, ValueError) as e:
                 log.warning("clear_halt(0x%02x) 失败(可忽略): %s", ep.bEndpointAddress, e)
         log.info("已 claim QuickTime 接口 #%d (in:0x%02x out:0x%02x)",
                  self._interface_number,
@@ -145,7 +155,7 @@ class UsbAdapter:
         if self._dev is not None:
             try:
                 usb.util.release_interface(self._dev, self._interface_number)
-            except usb.core.USBError:
+            except (usb.core.USBError, NotImplementedError, ValueError):
                 pass
             usb.util.dispose_resources(self._dev)
             self._dev = None
@@ -158,7 +168,7 @@ class UsbAdapter:
             try:
                 n = self._ep_out.write(frame)
                 log.debug("写出 %d/%d 字节 (magic=%s)", n, len(frame), frame[4:8])
-            except (usb.core.USBError, NotImplementedError) as e:
+            except (usb.core.USBError, NotImplementedError, ValueError) as e:
                 # 写失败会导致设备收不到回复而卡死握手, 必须显式暴露
                 log.error("写 USB 失败(%d 字节 magic=%s): %s", len(frame), frame[4:8], e)
                 raise
@@ -182,7 +192,7 @@ class UsbAdapter:
                     log.debug("读超时 %d 次(约 %ds 无数据), 仍在等待设备...",
                               timeouts, timeouts * READ_TIMEOUT_MS // 1000)
                 continue
-            except (usb.core.USBError, NotImplementedError) as e:
+            except (usb.core.USBError, NotImplementedError, ValueError) as e:
                 if self._stop.is_set():
                     break
                 log.error("USB 读错误: %s", e)
@@ -210,7 +220,7 @@ class UsbAdapter:
             from ..protocol.ping import new_ping_packet
             self.write(new_ping_packet())
             log.debug("唤醒敲门: 已主动发送 PING")
-        except (usb.core.USBError, NotImplementedError) as e:
+        except (usb.core.USBError, NotImplementedError, ValueError) as e:
             log.debug("主动 PING 发送失败: %s", e)
 
     def stop_reading(self) -> None:

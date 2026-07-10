@@ -4,8 +4,10 @@
   python -m imirror doctor              # 环境自检(跨平台, 不需要 iPhone)
   python -m imirror devices [--json]    # 列出 iOS 设备及 QT 配置状态
   python -m imirror activate            # 激活 QuickTime 配置
+  python -m imirror reset               # USB reset, 恢复半激活状态
   python -m imirror record out.h264 out.wav [--udid SERIAL] [--duration 秒]   # 录制
   python -m imirror gui                 # 实时预览(需要 PyAV + OpenCV)
+  python -m imirror macos-record out.mov --duration 10   # macOS 原生录制
 """
 from __future__ import annotations
 
@@ -26,6 +28,15 @@ def _fmt_bytes(n: int) -> str:
         if n < 1024 or unit == "GB":
             return f"{n:.1f}{unit}" if unit != "B" else f"{n}B"
         n /= 1024
+
+
+def _qt_state_text(device) -> str:
+    if device.qt_enabled:
+        return f"已激活 (active #{device.active_config_index})"
+    if device.qt_available:
+        active = "未知" if device.active_config_index == -1 else f"#{device.active_config_index}"
+        return f"可用但未激活 (active {active}, QT #{device.qt_config_index})"
+    return "未激活 (record 时会自动激活)"
 
 
 def cmd_doctor(_args) -> int:
@@ -60,7 +71,7 @@ def cmd_doctor(_args) -> int:
         print("✗ 未发现 Apple USB 设备 (vid=05ac)")
         print("  检查: 数据线要支持数据传输 / 手机解锁并点了\"信任\" / 换个 USB 口")
         if os_name == "Windows":
-            print("  Windows 还需: 用 Zadig 把 iPhone 驱动换成 libusbK 或 WinUSB")
+            print("  Windows 还需: 用 Zadig 把 iPhone 驱动换成 libusb-win32")
         return 1
     print(f"✓ 发现 {len(apple_devs)} 个 Apple USB 设备")
 
@@ -78,7 +89,7 @@ def cmd_doctor(_args) -> int:
         print(f"✗ {denied} 个 Apple 设备节点全部无法访问")
         print({
             "Linux": "  修复: 加 udev 规则(见 docs/真机联调手册.md)或在命令前加 sudo",
-            "Windows": "  修复: 用 Zadig 给复合父设备(USB ID 05AC 12A8)换 libusbK 驱动,\n"
+            "Windows": "  修复: 用 Zadig 给复合父设备(USB ID 05AC 12A8)换 libusb-win32 驱动,\n"
                        "        并停用 Apple Mobile Device Support 服务(详见 docs/真机联调手册.md)",
             "Darwin": "  修复: 退出可能占用设备的程序(QuickTime、爱思助手等)后重试",
         }.get(os_name, ""))
@@ -94,13 +105,12 @@ def cmd_doctor(_args) -> int:
         print("✗ 没有识别出 iOS 设备")
         if os_name == "Windows":
             print("  检查: Zadig 里换驱动的对象必须是 Composite Parent(USB ID 05AC 12A8),")
-            print("        换完后设备管理器应出现 libusbK Usb Devices 分类")
+            print("        换完后设备管理器应出现 libusb-win32 devices 分类")
         else:
             print("  发现的可能是键盘/耳机等 Apple 外设")
         return 1
     for d in ios:
-        state = "已激活" if d.qt_enabled else "未激活 (record 时会自动激活)"
-        print(f"✓ {d.serial}  {d.product_name}  QT配置: {state}")
+        print(f"✓ {d.serial}  {d.product_name}  QT配置: {_qt_state_text(d)}")
     print("\n环境就绪, 下一步: python -m imirror record out.h264 out.wav --duration 10")
     return 0
 
@@ -114,6 +124,10 @@ def cmd_devices(args) -> int:
             "product": d.product_name,
             "vid": d.vid,
             "pid": d.pid,
+            "active_config": d.active_config_index,
+            "usbmux_config": d.usbmux_config_index,
+            "qt_config": d.qt_config_index,
+            "qt_available": d.qt_available,
             "qt_enabled": d.qt_enabled,
         } for d in devices], ensure_ascii=False, indent=2))
         return 0 if devices else 1
@@ -121,8 +135,7 @@ def cmd_devices(args) -> int:
         print("未发现 iOS 设备。检查: 1) 数据线 2) 手机已解锁并信任 3) libusb 驱动(Windows 需用 Zadig 替换)")
         return 1
     for d in devices:
-        state = "已激活" if d.qt_enabled else "未激活"
-        print(f"{d.serial}  {d.product_name}  vid:pid={d.vid:04x}:{d.pid:04x}  QT配置: {state}")
+        print(f"{d.serial}  {d.product_name}  vid:pid={d.vid:04x}:{d.pid:04x}  QT配置: {_qt_state_text(d)}")
     return 0
 
 
@@ -150,6 +163,16 @@ def _pick_device(udid: str | None, need_qt: bool = False):
 def cmd_activate(args) -> int:
     device = _pick_device(args.udid, need_qt=True)
     print(f"{device.serial} QuickTime 配置已激活 (config #{device.qt_config_index})")
+    return 0
+
+
+def cmd_reset(args) -> int:
+    from .usb.activation import reset_usb_device
+
+    device = _pick_device(args.udid, need_qt=False)
+    print(f"正在重置 {device.serial} 的 USB 连接...")
+    info = reset_usb_device(device)
+    print(f"{info.serial} USB reset 完成, QT配置: {_qt_state_text(info)}")
     return 0
 
 
@@ -206,6 +229,10 @@ def cmd_record(args) -> int:
         adapter.close()
         reader.join(timeout=3)
         h264_file.close()
+    stats = processor.stats
+    if stats["video_frames"] == 0:
+        print("录制失败: 未收到视频帧。请用 -v 查看 USB/协议日志, 并按文档检查手机解锁信任、占用程序和 USB 连接。")
+        return 1
     print(f"已保存: {args.h264} / {args.wav}")
     print(f"播放: ffplay -f h264 {args.h264}")
     return 0
@@ -223,6 +250,21 @@ def cmd_gui(args) -> int:
         else:
             print('  uv pip install --python .venv/bin/python -e ".[gui]"')
         return 1
+
+
+def cmd_macos_devices(args) -> int:
+    from .macos_native import list_devices
+    return list_devices(json_output=args.json)
+
+
+def cmd_macos_record(args) -> int:
+    from .macos_native import record
+    return record(args.mov, args.udid, args.duration)
+
+
+def cmd_macos_gui(args) -> int:
+    from .macos_native import preview
+    return preview(args.udid)
 
 
 def main(argv=None) -> int:
@@ -243,6 +285,9 @@ def main(argv=None) -> int:
     p = sub.add_parser("activate", help="激活 QuickTime 配置")
     p.add_argument("--udid", help="设备序列号")
 
+    p = sub.add_parser("reset", help="重置 iPhone USB 连接, 恢复半激活状态")
+    p.add_argument("--udid", help="设备序列号")
+
     p = sub.add_parser("record", help="录制 h264+wav")
     p.add_argument("h264", help="输出 .h264 文件")
     p.add_argument("wav", help="输出 .wav 文件")
@@ -251,6 +296,18 @@ def main(argv=None) -> int:
                    help="录制时长, 到时自动停止(默认无限, Ctrl+C 停止)")
 
     p = sub.add_parser("gui", help="实时预览窗口")
+    p.add_argument("--udid", help="设备序列号")
+
+    p = sub.add_parser("macos-devices", help="macOS 原生后端: 列出 iOS 屏幕源")
+    p.add_argument("--json", action="store_true", help="以 JSON 输出")
+
+    p = sub.add_parser("macos-record", help="macOS 原生后端: 录制 .mov")
+    p.add_argument("mov", help="输出 .mov 文件")
+    p.add_argument("--udid", help="设备序列号")
+    p.add_argument("--duration", type=float, metavar="秒", default=10.0,
+                   help="录制时长(默认 10 秒)")
+
+    p = sub.add_parser("macos-gui", help="macOS 原生后端: 打开系统预览窗口")
     p.add_argument("--udid", help="设备序列号")
 
     args = parser.parse_args(argv)
@@ -262,8 +319,12 @@ def main(argv=None) -> int:
         "doctor": cmd_doctor,
         "devices": cmd_devices,
         "activate": cmd_activate,
+        "reset": cmd_reset,
         "record": cmd_record,
         "gui": cmd_gui,
+        "macos-devices": cmd_macos_devices,
+        "macos-record": cmd_macos_record,
+        "macos-gui": cmd_macos_gui,
     }
     return handlers[args.command](args)
 
