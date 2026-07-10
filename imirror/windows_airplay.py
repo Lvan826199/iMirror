@@ -16,7 +16,7 @@ import sys
 from dataclasses import dataclass
 
 
-UXPLAY_NAMES = ("uxplay.exe", "uxplay")
+UXPLAY_NAMES = ("uxplay-windows.exe", "uxplay.exe", "uxplay")
 UXPLAY_HINT = "https://github.com/leapbtw/uxplay-windows/releases"
 UXPLAY_UPSTREAM = "https://github.com/FDH2/UxPlay"
 
@@ -39,12 +39,16 @@ def _candidate_dirs() -> list[Path]:
     local = os.environ.get("LOCALAPPDATA")
     if local:
         dirs.extend([
+            Path(local) / "Programs" / "uxplay-windows",
+            Path(local) / "Programs" / "UxPlay Windows",
             Path(local) / "Programs" / "UxPlay",
             Path(local) / "imirror" / "uxplay",
         ])
     program_files = [os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")]
     for value in program_files:
         if value:
+            dirs.append(Path(value) / "uxplay-windows")
+            dirs.append(Path(value) / "UxPlay Windows")
             dirs.append(Path(value) / "UxPlay")
     return dirs
 
@@ -105,10 +109,11 @@ def doctor() -> int:
         print("下一步: python -m imirror windows-airplay")
         return 0
     print("[FAIL] 未找到 UxPlay")
-    print("  下载 Windows 版 UxPlay 后, 把 uxplay.exe 放到以下任一位置:")
-    print("  - 项目目录 tools\\uxplay\\uxplay.exe")
-    print("  - 项目目录 bin\\uxplay.exe")
-    print("  - 或设置环境变量 IMIRROR_UXPLAY=完整路径\\uxplay.exe")
+    print("  下载并安装 UxPlay Windows MSI 后重试。")
+    print("  也可使用 portable zip, 解压后把 uxplay-windows.exe 放到以下任一位置:")
+    print("  - 项目目录 tools\\uxplay\\uxplay-windows.exe")
+    print("  - 项目目录 bin\\uxplay-windows.exe")
+    print("  - 或设置环境变量 IMIRROR_UXPLAY=完整路径\\uxplay-windows.exe")
     print(f"  Windows 打包参考: {UXPLAY_HINT}")
     print(f"  上游项目参考: {UXPLAY_UPSTREAM}")
     return 1

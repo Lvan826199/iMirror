@@ -72,8 +72,8 @@ echo --------------------------------------------
 echo AirPlay 检查未完全通过。Windows 默认路线不需要 Zadig 换驱动。
 echo 如果提示缺 UxPlay:
 echo   1. 打开 https://github.com/leapbtw/uxplay-windows/releases
-echo   2. 下载 Windows 版 UxPlay
-echo   3. 把 uxplay.exe 放到 tools\uxplay\uxplay.exe
+echo   2. 下载并安装 uxplaywindows-installer.msi
+echo   3. 或使用 portable zip, 把 uxplay-windows.exe 放到 tools\uxplay\uxplay-windows.exe
 echo   4. 重新运行: .venv\Scripts\python.exe -m imirror windows-doctor
 echo 如果手机看不到 iMirror, 检查 Windows 防火墙, Bonjour, 手机和电脑同一局域网
 echo raw USB 是高级实验模式, 才需要按 docs\真机联调手册.md 使用 Zadig

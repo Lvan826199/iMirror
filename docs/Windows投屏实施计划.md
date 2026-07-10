@@ -88,7 +88,8 @@ git pull
 
 步骤：
 
-1. 准备 UxPlay：把 `uxplay.exe` 放到 `tools/uxplay/uxplay.exe`，或设置 `IMIRROR_UXPLAY`；
+1. 准备 UxPlay：优先安装 Windows 版 MSI；portable zip 则把 `uxplay-windows.exe` 放到
+   `tools/uxplay/uxplay-windows.exe`，或设置 `IMIRROR_UXPLAY`；
 2. 启动检查和接收端：
 
 ```powershell

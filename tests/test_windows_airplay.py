@@ -2,7 +2,7 @@ from imirror import windows_airplay
 
 
 def test_find_uxplay_uses_explicit_env(monkeypatch):
-    exe = r"C:\tools\uxplay.exe"
+    exe = r"C:\tools\uxplay-windows.exe"
     monkeypatch.setenv("IMIRROR_UXPLAY", exe)
     monkeypatch.setattr(windows_airplay.shutil, "which", lambda name: None)
     monkeypatch.setattr(windows_airplay.Path, "exists", lambda self: str(self) == exe)
@@ -12,9 +12,9 @@ def test_find_uxplay_uses_explicit_env(monkeypatch):
 
 def test_find_uxplay_uses_path(monkeypatch):
     monkeypatch.delenv("IMIRROR_UXPLAY", raising=False)
-    monkeypatch.setattr(windows_airplay.shutil, "which", lambda name: "C:/bin/uxplay.exe")
+    monkeypatch.setattr(windows_airplay.shutil, "which", lambda name: "C:/bin/" + name)
 
-    assert windows_airplay.find_uxplay() == "C:/bin/uxplay.exe"
+    assert windows_airplay.find_uxplay() == "C:/bin/uxplay-windows.exe"
 
 
 def test_doctor_reports_missing_uxplay_on_windows(monkeypatch, capsys):

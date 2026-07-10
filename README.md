@@ -259,7 +259,7 @@ imirror record out.h264 out.wav
 | 现象 | 原因与处理 |
 | --- | --- |
 | Windows `gui` 启动后手机看不到 iMirror | 先跑 `windows-doctor`；检查 UxPlay、Bonjour/mDNS、Windows 防火墙、电脑和手机是否在同一局域网 |
-| `windows-doctor` 提示未找到 UxPlay | 下载 Windows 版 UxPlay，把 `uxplay.exe` 放到 `tools\uxplay\uxplay.exe`，或设置 `IMIRROR_UXPLAY` 环境变量 |
+| `windows-doctor` 提示未找到 UxPlay | 下载并安装 Windows 版 UxPlay MSI；或用 portable zip，把 `uxplay-windows.exe` 放到 `tools\uxplay\uxplay-windows.exe`，或设置 `IMIRROR_UXPLAY` 环境变量 |
 | `windows-tools-doctor` 提示缺 tools | 内部仓库应已带 `tools\usbmuxd.exe` 等工具；若缺失，运行 `scripts\fetch-qvh-windows-tools.ps1` 刷新，或设置 `IMIRROR_QVH_TOOLS` 指向工具目录 |
 | `devices` 列不出设备 | raw USB 模式下检查数据线、手机信任、Windows Zadig/libusb-win32；AirPlay 模式不依赖 `devices` |
 | `Access denied / insufficient permissions` | Linux 缺 udev 规则，先用 `sudo` 验证，再加规则：`SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE="0666"` |
