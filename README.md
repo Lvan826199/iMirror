@@ -202,16 +202,16 @@ python -m imirror windows-airplay
 python -m imirror gui --backend raw-usb --udid 设备序列号
 ```
 
-Windows raw USB 高级模式可复用 `chotgpt/quicktime_video_hack_windows` 的 tools：
+Windows raw USB 高级模式内置了 `chotgpt/quicktime_video_hack_windows` 的 tools：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\fetch-qvh-windows-tools.ps1
 python -m imirror windows-tools-doctor
 python -m imirror windows-usbmuxd
 ```
 
 `windows-usbmuxd` 会启动参考项目修改过的 `usbmuxd.exe`，它监听 37015 并辅助设备进入
-QuickTime 模式。保持它运行后，再另开终端跑 raw USB 录制/预览。
+QuickTime 模式。保持它运行后，再另开终端跑 raw USB 录制/预览。若要刷新内置工具，可运行
+`scripts\fetch-qvh-windows-tools.ps1` 重新下载参考项目的 `tool/`。
 
 macOS 原生后端（实验性，不走 raw USB bulk；需要 Screen Recording 权限）：
 
@@ -259,7 +259,7 @@ imirror record out.h264 out.wav
 | --- | --- |
 | Windows `gui` 启动后手机看不到 iMirror | 先跑 `windows-doctor`；检查 UxPlay、Bonjour/mDNS、Windows 防火墙、电脑和手机是否在同一局域网 |
 | `windows-doctor` 提示未找到 UxPlay | 下载 Windows 版 UxPlay，把 `uxplay.exe` 放到 `tools\uxplay\uxplay.exe`，或设置 `IMIRROR_UXPLAY` 环境变量 |
-| `windows-tools-doctor` 提示缺 tools | 运行 `scripts\fetch-qvh-windows-tools.ps1` 下载 chotgpt 参考 tools，或设置 `IMIRROR_QVH_TOOLS` 指向已解压的 `tool` 目录 |
+| `windows-tools-doctor` 提示缺 tools | 内部仓库应已带 `tools\quicktime_video_hack_windows\tool`；若缺失，运行 `scripts\fetch-qvh-windows-tools.ps1` 刷新，或设置 `IMIRROR_QVH_TOOLS` 指向已解压的 `tool` 目录 |
 | `devices` 列不出设备 | raw USB 模式下检查数据线、手机信任、Windows Zadig/libusb-win32；AirPlay 模式不依赖 `devices` |
 | `Access denied / insufficient permissions` | Linux 缺 udev 规则，先用 `sudo` 验证，再加规则：`SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", MODE="0666"` |
 | `Resource busy` | 接口被占用：Linux 上是 `usbmuxd`，可 `systemctl stop usbmuxd` 试验；macOS 上是系统服务占用（macOS 建议直接用 QuickTime） |
